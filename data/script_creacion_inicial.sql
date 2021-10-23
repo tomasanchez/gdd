@@ -97,7 +97,7 @@ CREATE TABLE [SIN_NOMBRE].TIPO_PAQUETE (
 	CONSTRAINT ck_alto_max CHECK (Alto_max > 0),
 	CONSTRAINT ck_ancho_max CHECK (Ancho_max > 0),
 	CONSTRAINT ck_largo_max CHECK (Largo_max > 0)
-	--CONSTRAINT ck_desc CHECK (Descripcion IN ('Pequeño', 'Mediano', 'Grande'))
+	--CONSTRAINT ck_desc CHECK (Descripcion IN ('Pequeï¿½o', 'Mediano', 'Grande'))
 )
 GO
 
@@ -438,4 +438,17 @@ GO
 	FROM gd_esquema.Maestra
 	WHERE ORDEN_TRABAJO_ESTADO IS NOT NULL
 
-
+INSERT INTO [SIN_NOMBRE].CAMION
+SELECT DISTINCT
+ M.CAMION_PATENTE,
+ M.CAMION_NRO_CHASIS,
+ M.CAMION_NRO_MOTOR,
+ M.CAMION_FECHA_ALTA,
+ MC.Marca_Id,
+ MC.Modelo_Id
+ FROM [gd_esquema].Maestra M
+ JOIN [SIN_NOMBRE].MODELO_CAMION MC ON  MC.Descripcion =  M.MODELO_CAMION
+  AND MC.Velocidad_Max		= M.MODELO_VELOCIDAD_MAX
+  AND MC.Capacidad_Tanque	= M.MODELO_CAPACIDAD_TANQUE
+  AND MC.Capacidad_Carga	= M.MODELO_CAPACIDAD_CARGA
+ORDER BY CAMION_FECHA_ALTA
