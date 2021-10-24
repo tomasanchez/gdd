@@ -514,3 +514,76 @@ FROM [gd_esquema].Maestra M
 	AND R.Ciudad_Destino = C.Id_Ciudad
 	AND R.KM = M.RECORRIDO_KM
 WHERE VIAJE_CONSUMO_COMBUSTIBLE IS NOT NULL
+
+/**
+	Es todo un tema los Paquetes y los Paquetes por viaje
+**/
+-- Variables para hacer 1 LOOP
+DECLARE @RowsToProcess  INT
+DECLARE @CurrentRow     INT
+DECLARE @SelectCol1     INT
+-- Creo una tabla local Porque:
+--- Si Guardo primero los paquetes, despues no tengo forma de saber de que viaje son
+DECLARE @LT_TEMP_PKG TABLE(
+	RowID INT NOT NULL PRIMARY KEY IDENTITY(1,1),
+    Codigo TINYINT,
+	Peso DECIMAL(18, 2),
+	Alto DECIMAL(18, 2),
+	Ancho DECIMAL(18, 2),
+	Largo DECIMAL(18, 2),
+	Cantidad INT,
+	Viaje INT
+)
+INSERT INTO @LT_TEMP_PKG
+-- Pegandole directo a la tabla Maestra...
+SELECT DISTINCT
+ TP.Codigo,
+ M.PAQUETE_PESO_MAX,
+ M.PAQUETE_ALTO_MAX,
+ M.PAQUETE_ANCHO_MAX,
+ M.PAQUETE_LARGO_MAX,
+ M.PAQUETE_CANTIDAD,
+ V.Id AS [Nro de Viaje]
+FROM [gd_esquema].Maestra M
+ JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON TP.Descripcion = M.PAQUETE_DESCRIPCION
+  -- Matcheo Primero las ciudades para luego pegarle al recorrido con ambos Ids
+ JOIN [SIN_NOMBRE].CIUDAD C ON C.Nombre = M.RECORRIDO_CIUDAD_DESTINO
+ JOIN [SIN_NOMBRE].CIUDAD C2 ON C2.Nombre = M.RECORRIDO_CIUDAD_ORIGEN
+ JOIN [SIN_NOMBRE].RECORRIDO R ON  
+ 	R.Ciudad_Origen = C2.Id_Ciudad
+	AND R.Ciudad_Destino = C.Id_Ciudad
+	AND R.KM = M.RECORRIDO_KM
+  -- Aprovecho para matchear tambien el viaje
+ JOIN [SIN_NOMBRE].VIAJE V ON 
+	 V.Cod_Recorrido = R.Codigo
+	AND V.Patente_Camion = M.CAMION_PATENTE
+	AND V.Legajo_Chofer = M.CHOFER_NRO_LEGAJO
+	AND V.Fecha_Fin = M.VIAJE_FECHA_FIN
+	AND V.Fecha_Inicio = M.VIAJE_FECHA_INICIO
+ORDER BY V.Id
+-- Empiezo el LOOP por la tabla local
+SET @RowsToProcess = @@ROWCOUNT
+SET @CurrentRow	   = 0
+WHILE @CurrentRow < @RowsToProcess
+ BEGIN
+    -- Paso al proximo indice
+	SET @CurrentRow = @CurrentRow + 1
+	-- Primero guardo los Paquetes, para instanciar un Paquete.ID
+	INSERT INTO [SIN_NOMBRE].PAQUETE
+	SELECT 
+	  PKG.Codigo,
+	  PKG.Peso,
+	  PKG.Alto,
+	  PKG.Ancho,
+	  PKG.Largo
+	 FROM @LT_TEMP_PKG PKG
+	 WHERE PKG.RowID = @CurrentRow
+	 -- El ID va a ser el mismo que el nro de fila, al ser la carga.
+	 INSERT INTO [SIN_NOMBRE].PAQUETE_POR_VIAJE
+	  SELECT
+	   PKG.Viaje,
+	   PKG.RowID,
+	   PKG.Cantidad
+	   FROM @LT_TEMP_PKG PKG
+	   WHERE PKG.RowID = @CurrentRow
+ END
