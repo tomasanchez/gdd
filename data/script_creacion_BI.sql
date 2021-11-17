@@ -13,6 +13,10 @@ GO
  * =============================================================================================
  */
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION_MANTENIMIENTO') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO]
+GO
+
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION_VIAJE') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE]
@@ -49,7 +53,6 @@ GO
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_RECORRIDO') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].BI_RECORRIDO
 GO
-
 
 /**
  * ---------------------------------------------------------------------------------------------
@@ -205,6 +208,28 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
 	Precio_Final DECIMAL(18, 0)
 )
 
+/* ---------------------------------------------------------------------------------------------
+ * MANTENIMIENTO CAMION
+ * ---------------------------------------------------------------------------------------------
+ */
+
+CREATE TABLE [SIN_NOMBRE].BI_CAMION_MANTENIMIENTO(
+    Nro_OT INT, 
+	Patente_Camion NVARCHAR(15),
+	Modelo_Id SMALLINT,
+	Marca_Id SMALLINT,
+	Legajo INT,
+	Id_taller INT,
+	Fecha_Creacion DATETIME2(3),
+	Fecha_Fin DATETIME2(3),
+	Cod_Tarea INT,
+	Fecha_Inicio_Planificado DATETIME2(3),
+	Fecha_Inicio_Real DATETIME2(3),
+	Fecha_Fin_Real DATETIME2(3),
+	Material_Id INT,
+	Material_Cantidad INT,
+)
+GO
 
 
 
