@@ -54,6 +54,10 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP TABLE [SIN_NOMBRE].BI_RECORRIDO
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MATERIAL') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_MATERIAL
+GO
+
 /**
  * ---------------------------------------------------------------------------------------------
  * Chofer
@@ -189,6 +193,20 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
 	CONSTRAINT PK_bi_recorrido PRIMARY KEY (Codigo)
 )
 
+/**
+ * ---------------------------------------------------------------------------------------------
+ * Material
+ * ---------------------------------------------------------------------------------------------
+ */
+
+CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
+	Codigo NVARCHAR(100),
+	Descripcion NVARCHAR(255),
+	Precio DECIMAL(18,2),
+	CONSTRAINT PK_bi_material PRIMARY KEY (Codigo)
+)
+
+
 
 /**
  * ---------------------------------------------------------------------------------------------
@@ -303,6 +321,36 @@ GO
 		,[Modelo_Id]
 		,[Marca_Id]
 FROM [GD2C2021].[SIN_NOMBRE].[CAMION]
+
+
+INSERT INTO [SIN_NOMBRE].BI_TALLER
+SELECT T.Id
+	, T.Direccion
+	, T.Telefono
+	, T.Mail
+	, T.Nombre
+	, C.Nombre
+FROM [SIN_NOMBRE].TALLER T
+JOIN [SIN_NOMBRE].CIUDAD C ON T.Ciudad = C.Id_Ciudad
+
+ INSERT INTO [SIN_NOMBRE].[BI_MECANICO]
+ SELECT [Legajo]
+      ,[Nombre]
+      ,[Apellido]
+      ,[DNI]
+      ,[Direccion]
+      ,[Telefono]
+      ,[Mail]
+      ,[Fecha_Nac]
+      ,[Costo_Hora]
+	  ,DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) AS [Edad]
+  FROM [GD2C2021].[SIN_NOMBRE].[MECANICO]
+
+ INSERT INTO [SIN_NOMBRE].[BI_MATERIAL]
+ SELECT Codigo
+	, Descripcion
+	, Precio
+ FROM [SIN_NOMBRE].MATERIAL
 
  INSERT INTO [SIN_NOMBRE].[BI_RECORRIDO]
  SELECT [Codigo]
