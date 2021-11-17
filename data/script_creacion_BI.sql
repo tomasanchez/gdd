@@ -361,3 +361,18 @@ JOIN [SIN_NOMBRE].CIUDAD C ON T.Ciudad = C.Id_Ciudad
 FROM [GD2C2021].[SIN_NOMBRE].[RECORRIDO] R
 JOIN [SIN_NOMBRE].CIUDAD C  ON R.Ciudad_Origen = C.Id_Ciudad
 JOIN [SIN_NOMBRE].CIUDAD C2 ON R.Ciudad_Destino = C2.Id_Ciudad
+
+INSERT INTO [SIN_NOMBRE].[BI_CAMION_VIAJE]
+SELECT V.Patente_Camion
+	, V.Cod_Recorrido
+	, V.Legajo_Chofer
+	, V.Fecha_Inicio
+	, V.Fecha_Fin
+	, V.Consumo_Combustible
+	, V.Precio_Final + (SELECT SUM(PxV.Cantidad * TP.Precio) AS 'VALOR_TOTAL_PAQUETES'
+	FROM [SIN_NOMBRE].VIAJE V2
+	JOIN [SIN_NOMBRE].PAQUETE_POR_VIAJE PxV ON PxV.Id_Viaje = V2.Id
+	JOIN [SIN_NOMBRE].PAQUETE P ON PxV.Id_Paquete = P.Id
+	JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON P.Tipo = TP.Codigo
+	WHERE V2.Id = V.Id) AS 'PRECIO_TOTAL_VIAJE'
+FROM [SIN_NOMBRE].VIAJE V
