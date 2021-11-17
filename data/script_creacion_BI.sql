@@ -30,6 +30,15 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP TABLE [SIN_NOMBRE].BI_TAREA
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MECANICO') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_MECANICO
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_TALLER') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_TALLER
+GO
+
+
 /**
  * ---------------------------------------------------------------------------------------------
  * Chofer
@@ -94,6 +103,43 @@ CREATE TABLE [SIN_NOMBRE].BI_MODELO_CAMION (
 	CONSTRAINT PK_marca_camion PRIMARY KEY (Id ASC)
 )
 
+/**
+ * ---------------------------------------------------------------------------------------------
+ * TALLER
+ * ---------------------------------------------------------------------------------------------
+ */
+
+CREATE TABLE [SIN_NOMBRE].BI_TALLER
+(
+	Id INT IDENTITY(1, 1),
+	Direccion NVARCHAR(255) NOT NULL,
+	Telefono DECIMAL(18, 0),
+	Mail NVARCHAR(255),
+	Nombre NVARCHAR(255) NOT NULL,
+	Ciudad NVARCHAR(255),
+	CONSTRAINT PK_taller PRIMARY KEY (ID ASC)
+)
+
+/**
+ * ---------------------------------------------------------------------------------------------
+ * MECANICO
+ * ---------------------------------------------------------------------------------------------
+ */
+
+
+CREATE TABLE [SIN_NOMBRE].BI_MECANICO (
+	Legajo INT,
+	Nombre NVARCHAR(255) NOT NULL,
+	Apellido NVARCHAR(255) NOT NULL,
+	DNI DECIMAL(18, 2) CONSTRAINT UQ_MECANICO_DNI UNIQUE NOT NULL,
+	Direccion NVARCHAR(255),
+	Telefono INT,
+	Mail NVARCHAR(255),
+	Fecha_Nac DATETIME2(3),
+	Costo_Hora DECIMAL(18, 0) NOT NULL,
+	Edad INT
+	CONSTRAINT PK_mecanico PRIMARY KEY(LEGAJO)
+)
 
 /**
  * =============================================================================================
