@@ -160,7 +160,8 @@ CREATE TABLE [SIN_NOMBRE].BI_CAMION (
 	NroChasis NVARCHAR(255) NOT NULL,
 	NroMotor NVARCHAR(255) NOT NULL,
 	Fecha_alta DATETIME2(3),
-	Modelo NVARCHAR(255),
+	Modelo SMALLINT,
+	Marca SMALLINT,
 	CONSTRAINT PK_bi_camion PRIMARY KEY (Patente)
 )
 
@@ -178,6 +179,33 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
 	Precio_base_recorrido DECIMAL(18, 0),
 	CONSTRAINT PK_bi_recorrido PRIMARY KEY (Codigo)
 )
+
+
+/**
+ * ---------------------------------------------------------------------------------------------
+ * CAMION VIAJE
+ * ---------------------------------------------------------------------------------------------
+ */
+
+
+
+
+
+
+/**
+ * =============================================================================================
+ * ALTERS
+ * =============================================================================================
+ */
+
+
+ ALTER TABLE [SIN_NOMBRE].[BI_CAMION] WITH CHECK ADD
+	CONSTRAINT [FK__bi_camion_modelo] FOREIGN KEY(Marca, Modelo) REFERENCES [SIN_NOMBRE].BI_MODELO_CAMION (Marca_Id, Modelo_Id)
+ GO
+
+ALTER TABLE [SIN_NOMBRE].BI_MODELO_CAMION WITH CHECK ADD
+ CONSTRAINT [FK_bi_modelo_marca] FOREIGN KEY(Marca_Id) REFERENCES [SIN_NOMBRE].BI_MARCA_CAMION
+GO
 
 
 /**
