@@ -23,21 +23,20 @@ GO
 
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MODELO_CAMION') AND type in (N'U'))
-	DROP TABLE [SIN_NOMBRE].BI_CHOFER
+	DROP TABLE [SIN_NOMBRE].BI_MODELO_CAMION
 GO
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MARCA') AND type in (N'U'))
-	DROP TABLE [SIN_NOMBRE].BI_TAREA
+	DROP TABLE [SIN_NOMBRE].BI_MARCA
 GO
 
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MECANICO') AND type in (N'U'))
-	DROP TABLE [SIN_NOMBRE].BI_MECANICO
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_CAMION
 GO
 
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_TALLER') AND type in (N'U'))
-	DROP TABLE [SIN_NOMBRE].BI_TALLER
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_RECORRIDO') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_RECORRIDO
 GO
-
 
 /**
  * ---------------------------------------------------------------------------------------------
@@ -103,43 +102,38 @@ CREATE TABLE [SIN_NOMBRE].BI_MODELO_CAMION (
 	CONSTRAINT PK_marca_camion PRIMARY KEY (Id ASC)
 )
 
+
+
 /**
  * ---------------------------------------------------------------------------------------------
- * TALLER
+ * Camion
  * ---------------------------------------------------------------------------------------------
  */
 
-CREATE TABLE [SIN_NOMBRE].BI_TALLER
-(
-	Id INT IDENTITY(1, 1),
-	Direccion NVARCHAR(255) NOT NULL,
-	Telefono DECIMAL(18, 0),
-	Mail NVARCHAR(255),
-	Nombre NVARCHAR(255) NOT NULL,
-	Ciudad NVARCHAR(255),
-	CONSTRAINT PK_taller PRIMARY KEY (ID ASC)
+CREATE TABLE [SIN_NOMBRE].BI_CAMION (
+	Patente NVARCHAR(15),
+	NroChasis NVARCHAR(255) NOT NULL,
+	NroMotor NVARCHAR(255) NOT NULL,
+	Fecha_alta DATETIME2(3),
+	Modelo NVARCHAR(255),
+	CONSTRAINT PK_camion PRIMARY KEY (Patente)
 )
 
 /**
  * ---------------------------------------------------------------------------------------------
- * MECANICO
+ * Camion
  * ---------------------------------------------------------------------------------------------
  */
 
-
-CREATE TABLE [SIN_NOMBRE].BI_MECANICO (
-	Legajo INT,
-	Nombre NVARCHAR(255) NOT NULL,
-	Apellido NVARCHAR(255) NOT NULL,
-	DNI DECIMAL(18, 2) CONSTRAINT UQ_MECANICO_DNI UNIQUE NOT NULL,
-	Direccion NVARCHAR(255),
-	Telefono INT,
-	Mail NVARCHAR(255),
-	Fecha_Nac DATETIME2(3),
-	Costo_Hora DECIMAL(18, 0) NOT NULL,
-	Edad INT
-	CONSTRAINT PK_mecanico PRIMARY KEY(LEGAJO)
+CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
+	Codigo INT,
+	Origen NVARCHAR(255) NOT NULL,
+	Destino NVARCHAR(255) NOT NULL,
+	KM INT,
+	Precio_base_recorrido DECIMAL(18, 0),
+	CONSTRAINT PK_recorrido PRIMARY KEY (Codigo)
 )
+
 
 /**
  * =============================================================================================
@@ -182,3 +176,20 @@ CREATE TABLE [SIN_NOMBRE].BI_MECANICO (
  SELECT [Id]
       ,[Descripcion]
  FROM [GD2C2021].[SIN_NOMBRE].[MARCA_CAMION]
+
+ INSERT INTO [SIN_NOMBRE].[BI_CAMION]
+ SELECT [Patente]
+		,[Nro_Chasis]
+		,[Nro_Motor]
+		,[Fecha_Alta]
+		,[Modelo_Id]
+FROM [GD2C2021].[SIN_NOMBRE].[CAMION]
+
+
+ INSERT INTO [SIN_NOMBRE].[BI_RECORRIDO]
+ SELECT [Codigo]
+		,[Ciudad_Origen]
+		,[Ciudad_Destino]
+		,[KM]
+		,[Precio]
+FROM [GD2C2021].[SIN_NOMBRE].[RECORRIDO]
