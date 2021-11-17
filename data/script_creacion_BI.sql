@@ -13,12 +13,17 @@ GO
  * =============================================================================================
  */
 
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CHOFER') AND type in (N'U'))
-	DROP TABLE [SIN_NOMBRE].BI_CHOFER
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION_VIAJE') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE]
 GO
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_TAREA') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].BI_TAREA
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_CAMION
 GO
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MODELO_CAMION') AND type in (N'U'))
@@ -29,16 +34,16 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP TABLE [SIN_NOMBRE].BI_MARCA_CAMION
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CHOFER') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_CHOFER
+GO
+
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MECANICO') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].BI_MECANICO
 GO
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_TALLER') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].BI_TALLER
-GO
-
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION') AND type in (N'U'))
-	DROP TABLE [SIN_NOMBRE].BI_CAMION
 GO
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_RECORRIDO') AND type in (N'U'))
@@ -48,7 +53,6 @@ GO
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MATERIAL') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].BI_MATERIAL
 GO
-
 
 /**
  * ---------------------------------------------------------------------------------------------
@@ -165,7 +169,8 @@ CREATE TABLE [SIN_NOMBRE].BI_CAMION (
 	NroChasis NVARCHAR(255) NOT NULL,
 	NroMotor NVARCHAR(255) NOT NULL,
 	Fecha_alta DATETIME2(3),
-	Modelo NVARCHAR(255),
+	Modelo SMALLINT,
+	Marca SMALLINT,
 	CONSTRAINT PK_bi_camion PRIMARY KEY (Patente)
 )
 
@@ -200,6 +205,48 @@ CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
 
 
 /**
+ * ---------------------------------------------------------------------------------------------
+ * CAMION VIAJE
+ * ---------------------------------------------------------------------------------------------
+ */
+
+
+ CREATE TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE] (
+	Id_Camion_Viaje INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+	Patente   NVARCHAR(15) NOT NULL,
+	Recorrido INT,
+	Legajo_Chofer INT,
+	Fecha_Inicio DATETIME2(3),
+	Fecha_Fin DATETIME2(3),
+	Consumo_Combustible DECIMAL(18, 0),
+	Precio_Final DECIMAL(18, 0)
+)
+
+
+
+
+/**
+ * =============================================================================================
+ * ALTERS
+ * =============================================================================================
+ */
+
+
+ ALTER TABLE [SIN_NOMBRE].[BI_CAMION] WITH CHECK ADD
+	CONSTRAINT [FK__bi_camion_modelo] FOREIGN KEY(Marca, Modelo) REFERENCES [SIN_NOMBRE].BI_MODELO_CAMION (Marca_Id, Modelo_Id)
+ GO
+
+ALTER TABLE [SIN_NOMBRE].BI_MODELO_CAMION WITH CHECK ADD
+ CONSTRAINT [FK_bi_modelo_marca] FOREIGN KEY(Marca_Id) REFERENCES [SIN_NOMBRE].BI_MARCA_CAMION
+GO
+
+ALTER TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE] WITH CHECK ADD
+	CONSTRAINT [FK_bi_camion_viaje_recorrido] FOREIGN KEY(Recorrido) REFERENCES [SIN_NOMBRE].[BI_RECORRIDO],
+	CONSTRAINT [FK_bi_camion_viaje_chofer]	FOREIGN KEY(Legajo_Chofer) REFERENCES [SIN_NOMBRE].[BI_CHOFER],
+	CONSTRAINT [FK_bi_camion_viaje]			FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
+GO
+
+/**
  * =============================================================================================
  * INSERTS
  * =============================================================================================
@@ -226,6 +273,11 @@ CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
   FROM [GD2C2021].[SIN_NOMBRE].[TAREA] T
   INNER JOIN [SIN_NOMBRE].[TIPO_TAREA] TT ON  TT.Codigo = T.Tipo
 
+ INSERT INTO [SIN_NOMBRE].[BI_MARCA_CAMION]
+ SELECT [Id]
+      ,[Descripcion]
+ FROM [GD2C2021].[SIN_NOMBRE].[MARCA_CAMION]
+
  INSERT INTO [SIN_NOMBRE].[BI_MODELO_CAMION]
  SELECT [Marca_Id]
       ,[Modelo_Id]
@@ -235,28 +287,15 @@ CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
       ,[Capacidad_Carga]
   FROM [GD2C2021].[SIN_NOMBRE].[MODELO_CAMION]
 
-  
- INSERT INTO [SIN_NOMBRE].[BI_MARCA_CAMION]
- SELECT [Id]
-      ,[Descripcion]
- FROM [GD2C2021].[SIN_NOMBRE].[MARCA_CAMION]
-
  INSERT INTO [SIN_NOMBRE].[BI_CAMION]
  SELECT CAST([Patente] as NVARCHAR(15))
 		,[Nro_Chasis]
 		,[Nro_Motor]
 		,[Fecha_Alta]
 		,[Modelo_Id]
+		,[Marca_Id]
 FROM [GD2C2021].[SIN_NOMBRE].[CAMION]
 
-
- INSERT INTO [SIN_NOMBRE].[BI_RECORRIDO]
- SELECT [Codigo]
-		,[Ciudad_Origen]
-		,[Ciudad_Destino]
-		,[KM]
-		,[Precio]
-FROM [GD2C2021].[SIN_NOMBRE].[RECORRIDO]
 
 INSERT INTO [SIN_NOMBRE].BI_TALLER
 SELECT T.Id
@@ -286,3 +325,13 @@ JOIN [SIN_NOMBRE].CIUDAD C ON T.Ciudad = C.Id_Ciudad
 	, Descripcion
 	, Precio
  FROM [SIN_NOMBRE].MATERIAL
+
+ INSERT INTO [SIN_NOMBRE].[BI_RECORRIDO]
+ SELECT [Codigo]
+		,C.Nombre
+		,C2.Nombre
+		,[KM]
+		,[Precio]
+FROM [GD2C2021].[SIN_NOMBRE].[RECORRIDO] R
+JOIN [SIN_NOMBRE].CIUDAD C  ON R.Ciudad_Origen = C.Id_Ciudad
+JOIN [SIN_NOMBRE].CIUDAD C2 ON R.Ciudad_Destino = C2.Id_Ciudad
