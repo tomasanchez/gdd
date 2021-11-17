@@ -232,6 +232,7 @@ CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
  */
 
 CREATE TABLE [SIN_NOMBRE].BI_CAMION_MANTENIMIENTO(
+    Id_Camion_Mantenimiento INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
     Nro_OT INT, 
 	Patente_Camion NVARCHAR(15),
 	Modelo_Id SMALLINT,
@@ -244,7 +245,7 @@ CREATE TABLE [SIN_NOMBRE].BI_CAMION_MANTENIMIENTO(
 	Fecha_Inicio_Planificado DATETIME2(3),
 	Fecha_Inicio_Real DATETIME2(3),
 	Fecha_Fin_Real DATETIME2(3),
-	Material_Id INT,
+	Material NVARCHAR(100),
 	Material_Cantidad INT,
 )
 GO
@@ -271,6 +272,15 @@ ALTER TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE] WITH CHECK ADD
 	CONSTRAINT [FK_bi_camion_viaje_chofer]	FOREIGN KEY(Legajo_Chofer) REFERENCES [SIN_NOMBRE].[BI_CHOFER],
 	CONSTRAINT [FK_bi_camion_viaje]			FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
 GO
+
+ ALTER TABLE [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO] WITH CHECK ADD
+	CONSTRAINT [FK_bi_mantenimiento_material] FOREIGN KEY(Material) REFERENCES [SIN_NOMBRE].[BI_MATERIAL]
+	,CONSTRAINT [FK_bi_mantenimiento_mecanico] FOREIGN KEY(Legajo) REFERENCES [SIN_NOMBRE].[BI_MECANICO]
+	,CONSTRAINT [FK_bi_mantenimiento_modelo] FOREIGN KEY(Modelo_Id, Marca_Id) REFERENCES [SIN_NOMBRE].[BI_MODELO_CAMION] (Marca_Id, Modelo_Id)
+	,CONSTRAINT [FK_bi_mantenimiento_talller] FOREIGN KEY(Id_Taller) REFERENCES [SIN_NOMBRE].[BI_TALLER]
+	,CONSTRAINT [FK_bi_mantenimiento_tarea] FOREIGN KEY(Cod_Tarea) REFERENCES [SIN_NOMBRE].[BI_TAREA]
+	,CONSTRAINT [FK_bi_mantenimiento_camion] FOREIGN KEY(Patente_Camion) REFERENCES [SIN_NOMBRE].[BI_CAMION]
+ GO
 
 /**
  * =============================================================================================
