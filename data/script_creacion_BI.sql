@@ -232,23 +232,23 @@ CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
  */
 
 CREATE TABLE [SIN_NOMBRE].BI_CAMION_MANTENIMIENTO(
+    Id_Camion_Mantenimiento INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
     Nro_OT INT, 
 	Patente_Camion NVARCHAR(15),
 	Modelo_Id SMALLINT,
 	Marca_Id SMALLINT,
 	Legajo INT,
 	Id_taller INT,
-	Fecha_Creacion DATETIME2(3),
-	Fecha_Fin DATETIME2(3),
+	Fecha_Creacion DATETIME2(3), -- De la OT
 	Cod_Tarea INT,
-	Fecha_Inicio_Planificado DATETIME2(3),
-	Fecha_Inicio_Real DATETIME2(3),
-	Fecha_Fin_Real DATETIME2(3),
-	Material_Id INT,
+	Fecha_Inicio_Planificado DATETIME2(3), -- De la tarea
+	Fecha_Inicio_Real DATETIME2(3),      ---/
+	Fecha_Fin_Real DATETIME2(3),         --/
+	Cantidad_Horas_Trabajadas INT,
+	Material NVARCHAR(100),
 	Material_Cantidad INT,
 )
 GO
-
 
 
 /**
@@ -271,6 +271,15 @@ ALTER TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE] WITH CHECK ADD
 	CONSTRAINT [FK_bi_camion_viaje_chofer]	FOREIGN KEY(Legajo_Chofer) REFERENCES [SIN_NOMBRE].[BI_CHOFER],
 	CONSTRAINT [FK_bi_camion_viaje]			FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
 GO
+
+ ALTER TABLE [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO] WITH CHECK ADD
+	CONSTRAINT [FK_bi_mantenimiento_material] FOREIGN KEY(Material) REFERENCES [SIN_NOMBRE].[BI_MATERIAL]
+	,CONSTRAINT [FK_bi_mantenimiento_mecanico] FOREIGN KEY(Legajo) REFERENCES [SIN_NOMBRE].[BI_MECANICO]
+	,CONSTRAINT [FK_bi_mantenimiento_modelo] FOREIGN KEY(Marca_Id, Modelo_Id) REFERENCES [SIN_NOMBRE].[BI_MODELO_CAMION] (Marca_Id, Modelo_Id)
+	,CONSTRAINT [FK_bi_mantenimiento_talller] FOREIGN KEY(Id_Taller) REFERENCES [SIN_NOMBRE].[BI_TALLER]
+	,CONSTRAINT [FK_bi_mantenimiento_tarea] FOREIGN KEY(Cod_Tarea) REFERENCES [SIN_NOMBRE].[BI_TAREA]
+	,CONSTRAINT [FK_bi_mantenimiento_camion] FOREIGN KEY(Patente_Camion) REFERENCES [SIN_NOMBRE].[BI_CAMION]
+ GO
 
 /**
  * =============================================================================================
@@ -363,7 +372,7 @@ JOIN [SIN_NOMBRE].CIUDAD C  ON R.Ciudad_Origen = C.Id_Ciudad
 JOIN [SIN_NOMBRE].CIUDAD C2 ON R.Ciudad_Destino = C2.Id_Ciudad
 
 INSERT INTO [SIN_NOMBRE].[BI_CAMION_VIAJE]
-SELECT V.Patente_Camion
+SELECT CAST(V.Patente_Camion as NVARCHAR(15))
 	, V.Cod_Recorrido
 	, V.Legajo_Chofer
 	, V.Fecha_Inicio
@@ -376,3 +385,33 @@ SELECT V.Patente_Camion
 	JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON P.Tipo = TP.Codigo
 	WHERE V2.Id = V.Id) AS 'PRECIO_TOTAL_VIAJE'
 FROM [SIN_NOMBRE].VIAJE V
+
+INSERT INTO [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO]
+SELECT 
+	OT.Nro_OT
+	,CAST(OT.Patente_Camion as NVARCHAR(15))
+	,C.Modelo_Id
+	,C.Marca_Id
+	,TxO.Mecanico
+	,M.Id_taller
+	,OT.Fecha_Creacion
+	,TxO.Cod_Tarea
+	,TxO.Fecha_Inicio_Planificado
+	,TxO.Fecha_Inicio_Real
+	,TxO.Fecha_Fin_Real
+	,(DATEDIFF (DAY, TxO.Fecha_Inicio_Real , TxO.Fecha_Fin_Real) * 8) AS [Cantidad_Horas_Trabajadas]
+	,MxT.Cod_Material
+	,ISNULL(MxT.Cantidad, 1) AS [Cantidad]
+FROM [SIN_NOMBRE].ORDEN_TRABAJO OT
+JOIN [SIN_NOMBRE].CAMION C				ON C.Patente = OT.Patente_Camion
+JOIN [SIN_NOMBRE].TAREA_POR_ORDEN TxO	ON TxO.Nro_OT = OT.Nro_OT
+JOIN [SIN_NOMBRE].MECANICO M			ON M.Legajo = TxO.Mecanico
+JOIN [SIN_NOMBRE].MATERIAL_POR_TAREA MxT ON MxT.Cod_Tarea = TxO.Cod_Tarea
+
+
+
+-- Select cm.patente_camion, cm.id_taller, cm.quarter(fecha_fin) as 'cuatrimestre', sum( (m.precio * cm.cantidad) + (cm.cantidad_horas_trabajadas * me.costo_hora)) as costo_total
+-- from camion_mantenimiento cm 
+-- inner join mecanico me on cm.legajo_mecanico = me.legajo
+-- inner join material m on cm.material = m.codigo
+-- group by cm.patente_camion, cm.id_taller, cm.quarter(fecha_fin)
