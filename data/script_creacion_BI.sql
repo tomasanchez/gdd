@@ -45,6 +45,10 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP TABLE [SIN_NOMBRE].BI_RECORRIDO
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION_VIAJE') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE]
+GO
+
 /**
  * ---------------------------------------------------------------------------------------------
  * Chofer
@@ -188,6 +192,16 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
  */
 
 
+ CREATE TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE] (
+	Id_Camion_Viaje INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+	Patente   NVARCHAR(15) NOT NULL,
+	Recorrido INT,
+	Legajo_Chofer INT,
+	Fecha_Inicio DATETIME2(3),
+	Fecha_Fin DATETIME2(3),
+	Consumo_Combustible DECIMAL(18, 0),
+	Precio_Final DECIMAL(18, 0)
+)
 
 
 
@@ -207,6 +221,18 @@ ALTER TABLE [SIN_NOMBRE].BI_MODELO_CAMION WITH CHECK ADD
  CONSTRAINT [FK_bi_modelo_marca] FOREIGN KEY(Marca_Id) REFERENCES [SIN_NOMBRE].BI_MARCA_CAMION
 GO
 
+
+ALTER TABLE [SIN_NOMBRE].VIAJE WITH CHECK ADD
+	CONSTRAINT [FK_viaje_recorrido] FOREIGN KEY(Cod_Recorrido) REFERENCES [SIN_NOMBRE].RECORRIDO,
+	CONSTRAINT [FK_viaje_chofer] FOREIGN KEY(Legajo_Chofer) REFERENCES [SIN_NOMBRE].CHOFER,
+	CONSTRAINT [FK_viaje_camion] FOREIGN KEY(Patente_Camion) REFERENCES [SIN_NOMBRE].CAMION
+GO
+
+ALTER TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE] WITH CHECK ADD
+	CONSTRAINT [FK_bi_camion_viaje_recorrido] FOREIGN KEY(Recorrido) REFERENCES [SIN_NOMBRE].[BI_RECORRIDO],
+	CONSTRAINT [FK_bi_camion_viaje_chofer]	FOREIGN KEY(Legajo_Chofer) REFERENCES [SIN_NOMBRE].[BI_CHOFER],
+	CONSTRAINT [FK_bi_camion_viaje]			FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
+GO
 
 /**
  * =============================================================================================
