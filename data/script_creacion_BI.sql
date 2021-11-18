@@ -9,6 +9,24 @@ GO
 
 /**
  * =============================================================================================
+ * Borrado de Vistas
+ * =============================================================================================
+ */
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].V_Facturacion_Recorrido_Cuatrimestre') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Facturacion_Recorrido_Cuatrimestre
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Camion_Ganancias]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Camion_Ganancias
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Camion_Maximo_Tiempo_FueraDeServicio]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Camion_Maximo_Tiempo_FueraDeServicio
+GO
+
+/**
+ * =============================================================================================
  * Borrado de Tablas
  * =============================================================================================
  */
@@ -239,7 +257,8 @@ CREATE TABLE [SIN_NOMBRE].BI_CAMION_MANTENIMIENTO(
 	Marca_Id SMALLINT,
 	Legajo INT,
 	Id_taller INT,
-	Fecha_Creacion DATETIME2(3), -- De la OT
+	Fecha_Creacion_OT DATETIME2(3), -- De la OT
+	Fecha_Fin_OT DATETIME2(3), -- Calculado
 	Cod_Tarea INT,
 	Fecha_Inicio_Planificado DATETIME2(3), -- De la tarea
 	Fecha_Inicio_Real DATETIME2(3),      ---/
@@ -394,6 +413,7 @@ SELECT
 	,TxO.Mecanico
 	,M.Id_taller
 	,OT.Fecha_Creacion
+	, (select MAX(tpo.Fecha_Fin_Real) from [SIN_NOMBRE].TAREA_POR_ORDEN tpo where tpo.Nro_OT = OT.Nro_OT) -- Fecha fin OT
 	,TxO.Cod_Tarea
 	,TxO.Fecha_Inicio_Planificado
 	,TxO.Fecha_Inicio_Real
@@ -422,44 +442,26 @@ JOIN [SIN_NOMBRE].MATERIAL_POR_TAREA MxT ON MxT.Cod_Tarea = TxO.Cod_Tarea
 -- group by cm.patente_camion, cm.id_taller, cm.quarter(fecha_fin)
 
 
-/*
-Máximo tiempo fuera de servicio de cada camión por cuatrimestre
-Se entiende por fuera de servicio cuando el camión está en el taller (tiene
-una OT) y no se encuentra disponible para un viaje.
-*/
-
+CREATE VIEW [SIN_NOMBRE].[V_Camion_Maximo_Tiempo_FueraDeServicio] AS
 select cm.Patente_Camion
-	, DATEPART(quarter, cm.Fecha_Creacion) as 'Cuatrimestre'
-	, max(DATEDIFF(DAY, cm.Fecha_Creacion, max(cm.Fecha_Fin_Real))) --no se puede hacer dos max anidados
+	, DATEPART(quarter, cm.Fecha_Creacion_OT) as 'Cuatrimestre'
+	, max(DATEDIFF(DAY, cm.Fecha_Creacion_OT, cm.Fecha_Fin_OT)) as 'Maxima_Duracion_OT (Dias)'
 from SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm
-group by cm.Patente_Camion, DATEPART(quarter, cm.Fecha_Creacion)
-order by cm.Patente_Camion, DATEPART(quarter, cm.Fecha_Creacion)
+group by cm.Patente_Camion, DATEPART(quarter, cm.Fecha_Creacion_OT);
 
-/*
-facturacion total por recorrido por cuatrimestre
-*/
 
-select r.Codigo as 'Recorrido'
-	, r.Origen as 'Ciudad Origen'
-	, r.Destino as 'Ciudad Destino'
+CREATE VIEW [SIN_NOMBRE].[V_Facturacion_Recorrido_Cuatrimestre] AS
+SELECT r.Codigo as 'Recorrido'
+	, r.Origen as 'Ciudad_Origen'
+	, r.Destino as 'Ciudad_Destino'
 	, DATEPART(QUARTER, Fecha_Inicio) as 'Cuatrimestre'
-	, SUM(Precio_Final) as 'Facturacion Total'
-from SIN_NOMBRE.BI_CAMION_VIAJE cv
-join SIN_NOMBRE.BI_RECORRIDO r on cv.Recorrido = r.Codigo
-group by r.Codigo, r.Origen, r.Destino, DATEPART(QUARTER, Fecha_Inicio)
-order by r.Codigo, DATEPART(QUARTER, Fecha_Inicio)
+	, SUM(Precio_Final) as 'Facturacion_Total'
+FROM SIN_NOMBRE.BI_CAMION_VIAJE cv
+JOIN SIN_NOMBRE.BI_RECORRIDO r on cv.Recorrido = r.Codigo
+GROUP BY r.Codigo, r.Origen, r.Destino, DATEPART(QUARTER, Fecha_Inicio);
+--ORDER BY r.Codigo, DATEPART(QUARTER, Fecha_Inicio);
 
-
-/*
- Ganancia por camión (Ingresos – Costo de viaje – Costo de mantenimiento)
-o Ingresos: en función de la cantidad y tipo de paquetes que
-transporta el camión y el recorrido.
-o Costo de viaje: costo del chofer + el costo de combustible.
-Tomar precio por lt de combustible $100.-
-o Costo de mantenimiento: costo de materiales + costo de mano de
-obra.
-*/
-
+CREATE VIEW [SIN_NOMBRE].[V_Camion_Ganancias] AS
 select cm.Patente_Camion
 	, SUM(cv.Precio_Final) as 'Ingresos'
 	, SUM(ch.Costo_Hora * (DATEDIFF(HOUR, cv.Fecha_Inicio, cv.Fecha_Fin)) + 100 * cv.Consumo_Combustible) as 'Costo_Viaje'
@@ -475,5 +477,4 @@ join SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm on cv.Patente = cm.Patente_Camion
 join SIN_NOMBRE.BI_CHOFER ch on cv.Legajo_Chofer = ch.Legajo
 join SIN_NOMBRE.BI_MATERIAL mt on cm.Material = mt.Codigo
 join SIN_NOMBRE.BI_MECANICO mec on cm.Legajo = mec.Legajo
-group by cm.Patente_Camion
-order by cm.Patente_Camion
+group by cm.Patente_Camion;
