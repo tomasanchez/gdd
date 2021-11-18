@@ -29,6 +29,11 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP VIEW [SIN_NOMBRE].V_Promedio_Costo_Chofer
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Camion_Costo_Mant]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Camion_Costo_Mant
+GO
+
+
 /**
  * =============================================================================================
  * Borrado de Tablas
@@ -447,13 +452,20 @@ GO
  * =============================================================================================
  */
 
+ --select cm.Modelo_Id, cm.Cod_Tarea, count(distinct cm.Cod_Tarea)
+ --from SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm
+ --group by cm.Modelo_Id, cm.Cod_Tarea
+ --order by cm.Modelo_Id, cm.Cod_Tarea
 
--- Select cm.patente_camion, cm.id_taller, cm.quarter(fecha_fin) as 'cuatrimestre', sum( (m.precio * cm.cantidad) + (cm.cantidad_horas_trabajadas * me.costo_hora)) as costo_total
--- from camion_mantenimiento cm 
--- inner join mecanico me on cm.legajo_mecanico = me.legajo
--- inner join material m on cm.material = m.codigo
--- group by cm.patente_camion, cm.id_taller, cm.quarter(fecha_fin)
-
+ CREATE VIEW [SIN_NOMBRE].[V_Camion_Costo_Mant] AS
+ Select cm.patente_camion, cm.id_taller
+	, DATEPART(quarter, cm.Fecha_Fin_Real) as 'Cuatrimestre'
+	, sum( (m.precio * cm.Material_Cantidad) + (cm.cantidad_horas_trabajadas * me.costo_hora)) as costo_total
+ from SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm 
+ inner join SIN_NOMBRE.BI_MECANICO me on cm.Legajo = me.legajo
+ inner join SIN_NOMBRE.BI_MATERIAL m on cm.material = m.codigo
+ group by cm.patente_camion, cm.id_taller, DATEPART(quarter, cm.Fecha_Fin_Real)
+ GO
 
 CREATE VIEW [SIN_NOMBRE].[V_Camion_Maximo_Tiempo_FueraDeServicio] AS
 select cm.Patente_Camion
