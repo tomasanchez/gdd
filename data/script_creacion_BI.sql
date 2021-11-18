@@ -318,6 +318,7 @@ GO
       ,[Costo_Hora]
 	  ,DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) AS [Edad]
   FROM [GD2C2021].[SIN_NOMBRE].[CHOFER]
+  GO
 
  INSERT INTO [SIN_NOMBRE].[BI_TAREA]
  SELECT T.[Codigo]
@@ -326,11 +327,13 @@ GO
       ,T.[Tiempo_Estimado]
   FROM [GD2C2021].[SIN_NOMBRE].[TAREA] T
   INNER JOIN [SIN_NOMBRE].[TIPO_TAREA] TT ON  TT.Codigo = T.Tipo
+  GO
 
  INSERT INTO [SIN_NOMBRE].[BI_MARCA_CAMION]
  SELECT [Id]
       ,[Descripcion]
  FROM [GD2C2021].[SIN_NOMBRE].[MARCA_CAMION]
+ GO
 
  INSERT INTO [SIN_NOMBRE].[BI_MODELO_CAMION]
  SELECT [Marca_Id]
@@ -340,6 +343,7 @@ GO
       ,[Capacidad_Tanque]
       ,[Capacidad_Carga]
   FROM [GD2C2021].[SIN_NOMBRE].[MODELO_CAMION]
+  GO
 
  INSERT INTO [SIN_NOMBRE].[BI_CAMION]
  SELECT CAST([Patente] as NVARCHAR(15))
@@ -349,7 +353,7 @@ GO
 		,[Modelo_Id]
 		,[Marca_Id]
 FROM [GD2C2021].[SIN_NOMBRE].[CAMION]
-
+GO
 
 INSERT INTO [SIN_NOMBRE].BI_TALLER
 SELECT T.Id
@@ -360,6 +364,7 @@ SELECT T.Id
 	, C.Nombre
 FROM [SIN_NOMBRE].TALLER T
 JOIN [SIN_NOMBRE].CIUDAD C ON T.Ciudad = C.Id_Ciudad
+GO
 
  INSERT INTO [SIN_NOMBRE].[BI_MECANICO]
  SELECT [Legajo]
@@ -373,12 +378,14 @@ JOIN [SIN_NOMBRE].CIUDAD C ON T.Ciudad = C.Id_Ciudad
       ,[Costo_Hora]
 	  ,DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) AS [Edad]
   FROM [GD2C2021].[SIN_NOMBRE].[MECANICO]
+  GO
 
  INSERT INTO [SIN_NOMBRE].[BI_MATERIAL]
  SELECT Codigo
 	, Descripcion
 	, Precio
  FROM [SIN_NOMBRE].MATERIAL
+ GO
 
  INSERT INTO [SIN_NOMBRE].[BI_RECORRIDO]
  SELECT [Codigo]
@@ -389,6 +396,7 @@ JOIN [SIN_NOMBRE].CIUDAD C ON T.Ciudad = C.Id_Ciudad
 FROM [GD2C2021].[SIN_NOMBRE].[RECORRIDO] R
 JOIN [SIN_NOMBRE].CIUDAD C  ON R.Ciudad_Origen = C.Id_Ciudad
 JOIN [SIN_NOMBRE].CIUDAD C2 ON R.Ciudad_Destino = C2.Id_Ciudad
+GO
 
 INSERT INTO [SIN_NOMBRE].[BI_CAMION_VIAJE]
 SELECT CAST(V.Patente_Camion as NVARCHAR(15))
@@ -403,6 +411,7 @@ SELECT CAST(V.Patente_Camion as NVARCHAR(15))
 	JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON P.Tipo = TP.Codigo
 	WHERE PxV.Id_Viaje = V.Id) AS 'PRECIO_TOTAL_VIAJE'
 FROM [SIN_NOMBRE].VIAJE V
+GO
 
 INSERT INTO [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO]
 SELECT 
@@ -426,7 +435,7 @@ JOIN [SIN_NOMBRE].CAMION C				ON C.Patente = OT.Patente_Camion
 JOIN [SIN_NOMBRE].TAREA_POR_ORDEN TxO	ON TxO.Nro_OT = OT.Nro_OT
 JOIN [SIN_NOMBRE].MECANICO M			ON M.Legajo = TxO.Mecanico
 JOIN [SIN_NOMBRE].MATERIAL_POR_TAREA MxT ON MxT.Cod_Tarea = TxO.Cod_Tarea
-
+GO
 
 /**
  * =============================================================================================
@@ -448,7 +457,7 @@ select cm.Patente_Camion
 	, max(DATEDIFF(DAY, cm.Fecha_Creacion_OT, cm.Fecha_Fin_OT)) as 'Maxima_Duracion_OT (Dias)'
 from SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm
 group by cm.Patente_Camion, DATEPART(quarter, cm.Fecha_Creacion_OT);
-
+GO
 
 CREATE VIEW [SIN_NOMBRE].[V_Facturacion_Recorrido_Cuatrimestre] AS
 SELECT r.Codigo as 'Recorrido'
@@ -460,6 +469,7 @@ FROM SIN_NOMBRE.BI_CAMION_VIAJE cv
 JOIN SIN_NOMBRE.BI_RECORRIDO r on cv.Recorrido = r.Codigo
 GROUP BY r.Codigo, r.Origen, r.Destino, DATEPART(QUARTER, Fecha_Inicio);
 --ORDER BY r.Codigo, DATEPART(QUARTER, Fecha_Inicio);
+GO
 
 CREATE VIEW [SIN_NOMBRE].[V_Camion_Ganancias] AS
 select cm.Patente_Camion
@@ -478,3 +488,4 @@ join SIN_NOMBRE.BI_CHOFER ch on cv.Legajo_Chofer = ch.Legajo
 join SIN_NOMBRE.BI_MATERIAL mt on cm.Material = mt.Codigo
 join SIN_NOMBRE.BI_MECANICO mec on cm.Legajo = mec.Legajo
 group by cm.Patente_Camion;
+GO
