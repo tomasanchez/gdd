@@ -25,6 +25,10 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP VIEW [SIN_NOMBRE].V_Camion_Maximo_Tiempo_FueraDeServicio
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Promedio_Costo_Chofer]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Promedio_Costo_Chofer
+GO
+
 /**
  * =============================================================================================
  * Borrado de Tablas
@@ -489,3 +493,21 @@ join SIN_NOMBRE.BI_MATERIAL mt on cm.Material = mt.Codigo
 join SIN_NOMBRE.BI_MECANICO mec on cm.Legajo = mec.Legajo
 group by cm.Patente_Camion;
 GO
+
+CREATE VIEW [SIN_NOMBRE].[V_Promedio_Costo_Chofer]
+AS SELECT 
+	CASE WHEN Edad BETWEEN 18 AND 30 THEN '18 - 30'
+			  WHEN Edad BETWEEN 31 AND 50 THEN '31 - 50'
+			  ELSE '> 50' END AS [Rango_Etario]
+	,AVG(Costo_Hora) AS [Promedio]
+FROM [SIN_NOMBRE].[BI_CHOFER]
+GROUP BY CASE WHEN Edad BETWEEN 18 AND 30 THEN '18 - 30'
+			  WHEN Edad BETWEEN 31 AND 50 THEN '31 - 50'
+			  ELSE '> 50' END
+GO
+
+---
+-- SELECT CASE WHEN BC2.Edad BETWEEN 18 AND 30 THEN 1
+-- 			WHEN BC2.Edad BETWEEN 31 AND 50 THEN 2
+-- 			ELSE 3
+-- END AS 'RANGO_ETARIO' FROM [SIN_NOMBRE].BI_CHOFER BC2
