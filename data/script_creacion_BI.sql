@@ -1,4 +1,4 @@
-USE [GD2C2021]
+﻿USE [GD2C2021]
 GO
 
 SET ANSI_NULLS ON
@@ -379,11 +379,10 @@ SELECT CAST(V.Patente_Camion as NVARCHAR(15))
 	, V.Fecha_Fin
 	, V.Consumo_Combustible
 	, V.Precio_Final + (SELECT SUM(PxV.Cantidad * TP.Precio) AS 'VALOR_TOTAL_PAQUETES'
-	FROM [SIN_NOMBRE].VIAJE V2
-	JOIN [SIN_NOMBRE].PAQUETE_POR_VIAJE PxV ON PxV.Id_Viaje = V2.Id
+	FROM [SIN_NOMBRE].PAQUETE_POR_VIAJE PxV
 	JOIN [SIN_NOMBRE].PAQUETE P ON PxV.Id_Paquete = P.Id
 	JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON P.Tipo = TP.Codigo
-	WHERE V2.Id = V.Id) AS 'PRECIO_TOTAL_VIAJE'
+	WHERE PxV.Id_Viaje = V.Id) AS 'PRECIO_TOTAL_VIAJE'
 FROM [SIN_NOMBRE].VIAJE V
 
 INSERT INTO [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO]
@@ -409,9 +408,72 @@ JOIN [SIN_NOMBRE].MECANICO M			ON M.Legajo = TxO.Mecanico
 JOIN [SIN_NOMBRE].MATERIAL_POR_TAREA MxT ON MxT.Cod_Tarea = TxO.Cod_Tarea
 
 
+/**
+ * =============================================================================================
+ * VIEWS
+ * =============================================================================================
+ */
+
 
 -- Select cm.patente_camion, cm.id_taller, cm.quarter(fecha_fin) as 'cuatrimestre', sum( (m.precio * cm.cantidad) + (cm.cantidad_horas_trabajadas * me.costo_hora)) as costo_total
 -- from camion_mantenimiento cm 
 -- inner join mecanico me on cm.legajo_mecanico = me.legajo
 -- inner join material m on cm.material = m.codigo
 -- group by cm.patente_camion, cm.id_taller, cm.quarter(fecha_fin)
+
+
+/*
+Máximo tiempo fuera de servicio de cada camión por cuatrimestre
+Se entiende por fuera de servicio cuando el camión está en el taller (tiene
+una OT) y no se encuentra disponible para un viaje.
+*/
+
+select cm.Patente_Camion
+	, DATEPART(quarter, cm.Fecha_Creacion) as 'Cuatrimestre'
+	, max(DATEDIFF(DAY, cm.Fecha_Creacion, max(cm.Fecha_Fin_Real))) --no se puede hacer dos max anidados
+from SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm
+group by cm.Patente_Camion, DATEPART(quarter, cm.Fecha_Creacion)
+order by cm.Patente_Camion, DATEPART(quarter, cm.Fecha_Creacion)
+
+/*
+facturacion total por recorrido por cuatrimestre
+*/
+
+select r.Codigo as 'Recorrido'
+	, r.Origen as 'Ciudad Origen'
+	, r.Destino as 'Ciudad Destino'
+	, DATEPART(QUARTER, Fecha_Inicio) as 'Cuatrimestre'
+	, SUM(Precio_Final) as 'Facturacion Total'
+from SIN_NOMBRE.BI_CAMION_VIAJE cv
+join SIN_NOMBRE.BI_RECORRIDO r on cv.Recorrido = r.Codigo
+group by r.Codigo, r.Origen, r.Destino, DATEPART(QUARTER, Fecha_Inicio)
+order by r.Codigo, DATEPART(QUARTER, Fecha_Inicio)
+
+
+/*
+ Ganancia por camión (Ingresos – Costo de viaje – Costo de mantenimiento)
+o Ingresos: en función de la cantidad y tipo de paquetes que
+transporta el camión y el recorrido.
+o Costo de viaje: costo del chofer + el costo de combustible.
+Tomar precio por lt de combustible $100.-
+o Costo de mantenimiento: costo de materiales + costo de mano de
+obra.
+*/
+
+select cm.Patente_Camion
+	, SUM(cv.Precio_Final) as 'Ingresos'
+	, SUM(ch.Costo_Hora * (DATEDIFF(HOUR, cv.Fecha_Inicio, cv.Fecha_Fin)) + 100 * cv.Consumo_Combustible) as 'Costo_Viaje'
+	, SUM(cm.Material_Cantidad * mt.Precio + cm.Cantidad_Horas_Trabajadas * mec.Costo_Hora) as 'Costo_Mantenimiento'
+	, SUM(cv.Precio_Final)
+		-
+	SUM(ch.Costo_Hora * (DATEDIFF(HOUR, cv.Fecha_Inicio, cv.Fecha_Fin)) + 100 * cv.Consumo_Combustible)
+		-
+	SUM(cm.Material_Cantidad * mt.Precio + cm.Cantidad_Horas_Trabajadas * mec.Costo_Hora)
+	as 'Ganancia'
+from SIN_NOMBRE.BI_CAMION_VIAJE cv
+join SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm on cv.Patente = cm.Patente_Camion
+join SIN_NOMBRE.BI_CHOFER ch on cv.Legajo_Chofer = ch.Legajo
+join SIN_NOMBRE.BI_MATERIAL mt on cm.Material = mt.Codigo
+join SIN_NOMBRE.BI_MECANICO mec on cm.Legajo = mec.Legajo
+group by cm.Patente_Camion
+order by cm.Patente_Camion
