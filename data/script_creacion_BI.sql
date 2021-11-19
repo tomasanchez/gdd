@@ -456,6 +456,21 @@ GO
  * =============================================================================================
  */
 
+
+--------------------5 TAREAS MÁS REALIZADAS POR MODELO CAMIÓN------------------
+
+/*
+SELECT cm.modelo_camion, t.descripcion
+FROM [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO] cm
+INNER JOIN [SIN_NOMBRE].[BI_TAREA] T ON T.Codigo = CM.Cod_Tarea
+WHERE cm.cod_tarea in (select top 5 cod_tarea 
+						from [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO] 
+						group by cod_tarea
+						order by count(cod_tarea))
+GROUP BY cm.modelo_camion
+*/
+
+
  --select cm.Modelo_Id, cm.Cod_Tarea, count(distinct cm.Cod_Tarea)
  --from SIN_NOMBRE.BI_CAMION_MANTENIMIENTO cm
  --group by cm.Modelo_Id, cm.Cod_Tarea
@@ -541,8 +556,11 @@ ORDER BY CM.Id_taller, CM.Cod_Tarea
 GO
 
 
+
 ---
 -- SELECT CASE WHEN BC2.Edad BETWEEN 18 AND 30 THEN 1
 -- 			WHEN BC2.Edad BETWEEN 31 AND 50 THEN 2
 -- 			ELSE 3
 -- END AS 'RANGO_ETARIO' FROM [SIN_NOMBRE].BI_CHOFER BC2
+
+
