@@ -33,6 +33,10 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP VIEW [SIN_NOMBRE].V_Camion_Costo_Mant
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Desvio_Tareas]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Desvio_Tareas
+GO
+
 
 /**
  * =============================================================================================
@@ -517,6 +521,25 @@ GROUP BY CASE WHEN Edad BETWEEN 18 AND 30 THEN '18 - 30'
 			  WHEN Edad BETWEEN 31 AND 50 THEN '31 - 50'
 			  ELSE '> 50' END
 GO
+
+
+CREATE VIEW [SIN_NOMBRE].[V_Desvio_Tareas]
+AS
+SELECT DISTINCT
+      [Id_taller]	AS [Taller]
+      ,[Cod_Tarea]	AS [Tarea]
+      ,AVG ( T.Tiempo_Estimado  - [Cantidad_Horas_Trabajadas]/8) AS [Desvio]
+  FROM (SELECT DISTINCT
+		CM2.Nro_Ot,
+		CM2.Cod_Tarea,
+		CM2.Id_taller,
+		CM2.Cantidad_Horas_Trabajadas
+		FROM [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO] CM2) CM
+JOIN [SIN_NOMBRE].[BI_TAREA] T ON T.Codigo = CM.Cod_Tarea
+GROUP BY CM.Id_taller, CM.Cod_Tarea
+ORDER BY CM.Id_taller, CM.Cod_Tarea
+GO
+
 
 ---
 -- SELECT CASE WHEN BC2.Edad BETWEEN 18 AND 30 THEN 1
