@@ -37,6 +37,17 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP VIEW [SIN_NOMBRE].V_Desvio_Tareas
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_TOP_5_Tareas_Por_Camion]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_TOP_5_Tareas_Por_Camion
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Tareas_Por_Camion]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Tareas_Por_Camion
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Tareas_Realizadas]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].V_Tareas_Realizadas
+GO
 
 /**
  * =============================================================================================
@@ -552,7 +563,50 @@ SELECT DISTINCT
 		FROM [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO] CM2) CM
 JOIN [SIN_NOMBRE].[BI_TAREA] T ON T.Codigo = CM.Cod_Tarea
 GROUP BY CM.Id_taller, CM.Cod_Tarea
-ORDER BY CM.Id_taller, CM.Cod_Tarea
+GO
+
+
+-- Para el TOP 5 Tareas por Camion
+
+-- Primero Vistamos las Tareas Realizadas
+CREATE VIEW [SIN_NOMBRE].[V_Tareas_Realizadas]
+AS
+SELECT DISTINCT       
+		[Nro_OT]
+	  ,[Cod_Tarea]
+	  ,[Marca_Id]
+      ,[Modelo_Id]
+	  ,[Id_Taller]
+  FROM [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO]
+GO
+-- Despues Las Tareas Por Camion
+CREATE VIEW [SIN_NOMBRE].[V_Tareas_Por_Camion]
+AS
+SELECT [Cod_Tarea]
+	  ,[Marca_Id]
+	  ,[Modelo_Id]
+      ,ISNULL(COUNT(*), 0) AS [Ejecutadas]
+FROM [SIN_NOMBRE].[V_Tareas_Realizadas]
+GROUP BY [Cod_Tarea], [Marca_Id], [Modelo_Id]
+GO
+
+-- Finalmente Los Camiones con Sus respectivas Tareas
+CREATE VIEW [SIN_NOMBRE].[V_TOP_5_Tareas_Por_Camion]
+AS
+SELECT DISTINCT
+   T.[Marca_ID]
+  ,T.[Modelo_ID]
+  ,T.[Cod_Tarea]
+  ,TE.Ejecutadas AS [Veces Realizas]
+FROM [SIN_NOMBRE].[V_Tareas_Realizadas] T
+JOIN [SIN_NOMBRE].[V_Tareas_Por_Camion] TE ON 
+	TE.Modelo_Id = T.Modelo_Id AND TE.Cod_Tarea = T.Cod_Tarea
+	AND TE.Marca_Id = T.Marca_Id
+WHERE T.Cod_Tarea IN (SELECT TOP 5 Cod_Tarea
+						FROM [SIN_NOMBRE].[V_Tareas_Por_Camion] TxC
+						WHERE T.Marca_Id = TxC.Marca_Id
+						AND T.Modelo_Id = TxC.Modelo_Id
+						ORDER BY Ejecutadas DESC)
 GO
 
 
