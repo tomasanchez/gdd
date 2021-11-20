@@ -49,6 +49,14 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP VIEW [SIN_NOMBRE].V_Tareas_Realizadas
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Materiales_Taller]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].[V_Materiales_Taller]
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].[V_Top_10_Materiales_Taller]') AND type in (N'V'))
+	DROP VIEW [SIN_NOMBRE].[V_Top_10_Materiales_Taller]
+GO
+
 /**
  * =============================================================================================
  * Borrado de Tablas
@@ -609,12 +617,27 @@ WHERE T.Cod_Tarea IN (SELECT TOP 5 Cod_Tarea
 						ORDER BY Ejecutadas DESC)
 GO
 
+CREATE VIEW [SIN_NOMBRE].[V_Materiales_Taller]
+AS
+SELECT
+       [Id_taller]
+      ,[Material]
+      ,SUM([Material_Cantidad]) AS [Veces_Utilizado]
+  FROM [GD2C2021].[SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO]
+GROUP BY Id_taller, Material
+GO
 
-
----
--- SELECT CASE WHEN BC2.Edad BETWEEN 18 AND 30 THEN 1
--- 			WHEN BC2.Edad BETWEEN 31 AND 50 THEN 2
--- 			ELSE 3
--- END AS 'RANGO_ETARIO' FROM [SIN_NOMBRE].BI_CHOFER BC2
-
-
+CREATE VIEW [SIN_NOMBRE].[V_Top_10_Materiales_Taller]
+AS
+SELECT DISTINCT
+	 CM.[Id_taller] AS [Taller]
+	,CM.[Material]
+	,VMT.Veces_Utilizado
+FROM [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO] CM
+JOIN [SIN_NOMBRE].[V_Materiales_Taller]  VMT ON VMT.Id_taller = CM.Id_taller AND VMT.Material = CM.Material
+WHERE CM.Material IN (SELECT TOP 10 
+							Material
+						FROM [SIN_NOMBRE].[V_Materiales_Taller] MT
+						WHERE MT.Id_taller = CM.Id_taller
+						ORDER BY MT.[Veces_Utilizado] DESC)
+GO
