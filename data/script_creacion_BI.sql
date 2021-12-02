@@ -108,6 +108,40 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP TABLE [SIN_NOMBRE].BI_MATERIAL
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_TIEMPO') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_TIEMPO
+GO
+
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_RANGO_EDAD') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_RANGO_EDAD
+GO
+
+/**
+ * ---------------------------------------------------------------------------------------------
+ * Tiempo
+ * ---------------------------------------------------------------------------------------------
+ */
+ CREATE TABLE [SIN_NOMBRE].BI_TIEMPO
+(
+	Id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	Anio INT,
+	Cuatrimestre TINYINT,
+)
+GO
+
+ /**
+ * ---------------------------------------------------------------------------------------------
+ * Rango Edad
+ * ---------------------------------------------------------------------------------------------
+ */
+  CREATE TABLE [SIN_NOMBRE].BI_RANGO_EDAD
+(
+	Id TINYINT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	Descripcion VARCHAR(30) NOT NULL
+)
+GO
+
 /**
  * ---------------------------------------------------------------------------------------------
  * Chofer
@@ -138,8 +172,7 @@ CREATE TABLE [SIN_NOMBRE].BI_CHOFER (
 CREATE TABLE [SIN_NOMBRE].BI_TAREA
 (
 	Codigo INT NOT NULL PRIMARY KEY,
-	Tipo NVARCHAR(255),
-	Descripcion NVARCHAR(255),
+	Tipo TINYINT,
 	Tiempo_Estimado INT
 )
 GO
