@@ -138,7 +138,7 @@ GO
   CREATE TABLE [SIN_NOMBRE].BI_RANGO_EDAD
 (
 	Id TINYINT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	Descripcion VARCHAR(30) NOT NULL
+	Descripcion NVARCHAR(30) NOT NULL
 )
 GO
 
@@ -171,9 +171,11 @@ CREATE TABLE [SIN_NOMBRE].BI_CHOFER (
 
 CREATE TABLE [SIN_NOMBRE].BI_TAREA
 (
-	Codigo INT NOT NULL PRIMARY KEY,
+	Codigo INT NOT NULL,
+	Material NVARCHAR(100) NOT NULL,
 	Tipo TINYINT,
-	Tiempo_Estimado INT
+	Tiempo_Estimado INT,
+	CONSTRAINT PK_BI_TAREA PRIMARY KEY(Codigo, Material)
 )
 GO
 
@@ -284,12 +286,33 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
 
 CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
 	Codigo NVARCHAR(100),
-	Descripcion NVARCHAR(255),
-	Precio DECIMAL(18,2),
-	CONSTRAINT PK_bi_material PRIMARY KEY (Codigo)
 )
 
+/**
+ * ---------------------------------------------------------------------------------------------
+ * Tablas de Hechos
+ * ---------------------------------------------------------------------------------------------
+ */
 
+ CREATE TABLE [SIN_NOMBRE].BI_HECHO_VIAJE(
+   Tiempo INT NOT NULL,
+   Patente NVARCHAR(15),
+   Recorrido INT NOT NULL,
+   Total_Facturado DECIMAL(18,2),
+   Costo_Total DECIMAL(18,2)
+ )
+
+  CREATE TABLE [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO(
+   Tiempo INT NOT NULL,
+   Patente NVARCHAR(15),
+   Modelo SMALLINT NOT NULL,
+   Marca SMALLINT NOT NULL,
+   Tarea INT NOT NULL,
+   Material NVARCHAR(100) NOT NULL,
+   Total_Facturado DECIMAL(18,2),
+   Desvio_Tarea INT,
+   Horas_Sin_Servicio INT,
+ )
 
 /**
  * ---------------------------------------------------------------------------------------------
