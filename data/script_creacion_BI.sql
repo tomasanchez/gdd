@@ -63,6 +63,16 @@ GO
  * =============================================================================================
  */
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_HECHO_VIAJE') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].[BI_HECHO_VIAJE]
+GO
+
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].[BI_HECHO_ORDEN_TRABAJO]
+GO
+
+
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION_MANTENIMIENTO') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].[BI_CAMION_MANTENIMIENTO]
 GO
@@ -122,7 +132,7 @@ GO
  * Tiempo
  * ---------------------------------------------------------------------------------------------
  */
- CREATE TABLE [SIN_NOMBRE].BI_TIEMPO
+CREATE TABLE [SIN_NOMBRE].BI_TIEMPO
 (
 	Id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	Anio INT,
@@ -135,10 +145,10 @@ GO
  * Rango Edad
  * ---------------------------------------------------------------------------------------------
  */
-  CREATE TABLE [SIN_NOMBRE].BI_RANGO_EDAD
+CREATE TABLE [SIN_NOMBRE].BI_RANGO_EDAD
 (
 	Id TINYINT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	Descripcion NVARCHAR(30) NOT NULL
+	Descripcion NVARCHAR(5) NOT NULL
 )
 GO
 
@@ -158,7 +168,7 @@ CREATE TABLE [SIN_NOMBRE].BI_CHOFER (
 	Mail NVARCHAR(255),
 	Fecha_Nac DATETIME2(3),
 	Costo_Hora INT NOT NULL,
-	Edad INT,
+	Rango_Edad TINYINT,
 	CONSTRAINT PK_bi_chofer PRIMARY KEY (Legajo)
 )
 
@@ -171,13 +181,10 @@ CREATE TABLE [SIN_NOMBRE].BI_CHOFER (
 
 CREATE TABLE [SIN_NOMBRE].BI_TAREA
 (
-	Codigo INT NOT NULL,
-	Material NVARCHAR(100) NOT NULL,
-	Tipo TINYINT,
-	Tiempo_Estimado INT,
-	CONSTRAINT PK_BI_TAREA PRIMARY KEY(Codigo, Material)
+	Codigo INT NOT NULL PRIMARY KEY,
+	Tipo NVARCHAR(255) NOT NULL,
+	Tiempo_Estimado INT NOT NULL
 )
-GO
 
 /**
  * ---------------------------------------------------------------------------------------------
@@ -243,7 +250,7 @@ CREATE TABLE [SIN_NOMBRE].BI_MECANICO (
 	Mail NVARCHAR(255),
 	Fecha_Nac DATETIME2(3),
 	Costo_Hora DECIMAL(18, 0) NOT NULL,
-	Edad INT
+	Rango_Edad TINYINT,
 	CONSTRAINT PK_bi_mecanico PRIMARY KEY(LEGAJO)
 )
 
@@ -284,8 +291,9 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
  * ---------------------------------------------------------------------------------------------
  */
 
-CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
-	Codigo NVARCHAR(100),
+CREATE TABLE [SIN_NOMBRE].BI_MATERIAL
+(
+	Material NVARCHAR(100) NOT NULL PRIMARY KEY
 )
 
 /**
@@ -304,12 +312,13 @@ CREATE TABLE [SIN_NOMBRE].BI_MATERIAL (
 
   CREATE TABLE [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO(
    Tiempo INT NOT NULL,
+   Id_taller INT,
    Patente NVARCHAR(15),
    Modelo SMALLINT NOT NULL,
    Marca SMALLINT NOT NULL,
-   Tarea INT NOT NULL,
-   Material NVARCHAR(100) NOT NULL,
-   Total_Facturado DECIMAL(18,2),
+   Tarea_Mas_Utilizada INT NOT NULL,
+   Material_Mas_Utilizado NVARCHAR(100) NOT NULL,
+   Costo_Total DECIMAL(18,2),
    Desvio_Tarea INT,
    Horas_Sin_Servicio INT,
  )
@@ -364,6 +373,13 @@ GO
  * =============================================================================================
  */
 
+ALTER TABLE [SIN_NOMBRE].BI_CHOFER WITH CHECK ADD
+ CONSTRAINT [FK_bi_chofer_edad]		FOREIGN KEY(Rango_Edad) REFERENCES [SIN_NOMBRE].BI_RANGO_EDAD
+GO
+
+ALTER TABLE [SIN_NOMBRE].BI_MECANICO WITH CHECK ADD
+ CONSTRAINT [FK_bi_mecanico_edad]	FOREIGN KEY(Rango_Edad) REFERENCES [SIN_NOMBRE].BI_RANGO_EDAD
+GO
 
  ALTER TABLE [SIN_NOMBRE].[BI_CAMION] WITH CHECK ADD
 	CONSTRAINT [FK__bi_camion_modelo] FOREIGN KEY(Marca, Modelo) REFERENCES [SIN_NOMBRE].BI_MODELO_CAMION (Marca_Id, Modelo_Id)
@@ -372,6 +388,22 @@ GO
 ALTER TABLE [SIN_NOMBRE].BI_MODELO_CAMION WITH CHECK ADD
  CONSTRAINT [FK_bi_modelo_marca] FOREIGN KEY(Marca_Id) REFERENCES [SIN_NOMBRE].BI_MARCA_CAMION
 GO
+
+ALTER TABLE [SIN_NOMBRE].[BI_HECHO_VIAJE] WITH CHECK ADD
+	CONSTRAINT [FK_bi_h_viaje_tiempo]	FOREIGN KEY(Tiempo) REFERENCES [SIN_NOMBRE].[BI_TIEMPO],
+	CONSTRAINT [FK_bi_h_viaje_recorr]	FOREIGN KEY(Recorrido) REFERENCES [SIN_NOMBRE].[BI_RECORRIDO],
+	CONSTRAINT [FK_bi_h_viaje_chofer]	FOREIGN KEY(Legajo_Chofer) REFERENCES [SIN_NOMBRE].[BI_CHOFER],
+	CONSTRAINT [FK_bi_h_viaje_patnte]	FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
+GO
+
+ALTER TABLE [SIN_NOMBRE].[BI_HECHO_ORDEN_TRABAJO] WITH CHECK ADD
+	CONSTRAINT  [FK_bi_h_ot_tiempo]		FOREIGN KEY(Tiempo) REFERENCES [SIN_NOMBRE].[BI_Tiempo]
+	,CONSTRAINT [FK_bi_h_ot_camion]		FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
+	,CONSTRAINT [FK_bi_h_ot_modelo]		FOREIGN KEY(Marca, Modelo) REFERENCES [SIN_NOMBRE].[BI_MODELO_CAMION] (Marca_Id, Modelo_Id)
+	,CONSTRAINT [FK_bi_h_ot_taller]		FOREIGN KEY(Id_Taller) REFERENCES [SIN_NOMBRE].[BI_TALLER]
+	,CONSTRAINT [FK_bi_h_ot_tarea]		FOREIGN KEY(Tarea_Mas_Utilizada) REFERENCES [SIN_NOMBRE].[BI_TAREA]
+	,CONSTRAINT [FK_bi_h_ot_material]	FOREIGN KEY(Material_Mas_Utilizado) REFERENCES [SIN_NOMBRE].[BI_MATERIAL]
+ GO
 
 ALTER TABLE [SIN_NOMBRE].[BI_CAMION_VIAJE] WITH CHECK ADD
 	CONSTRAINT [FK_bi_camion_viaje_recorrido] FOREIGN KEY(Recorrido) REFERENCES [SIN_NOMBRE].[BI_RECORRIDO],
@@ -394,6 +426,49 @@ GO
  * =============================================================================================
  */
 
+ INSERT INTO [SIN_NOMBRE].[BI_RANGO_EDAD]
+ VALUES ('18-30'),('31-50'),('>50')
+ GO
+
+CREATE OR ALTER PROCEDURE PR_CARGAR_TIEMPOS
+AS
+BEGIN
+		DECLARE @max_year INT
+		DECLARE @min_year INT
+
+		SELECT @min_year = MIN(Anio)
+		FROM
+		(SELECT MIN(YEAR([Fecha_Creacion])) AS [Anio] FROM [GD2C2021].[SIN_NOMBRE].[ORDEN_TRABAJO] OT
+		 UNION 
+		 SELECT MIN(YEAR([Fecha_Inicio]))   AS [Anio] FROM [GD2C2021].[SIN_NOMBRE].[VIAJE] V
+		 ) AS Y
+
+		SELECT @max_year = MAX(Anio)
+		FROM
+		(SELECT MAX(YEAR([Fecha_Creacion])) AS [Anio] FROM [GD2C2021].[SIN_NOMBRE].[ORDEN_TRABAJO] OT
+		 UNION 
+		 SELECT MAX(YEAR([Fecha_Inicio]))   AS [Anio] FROM [GD2C2021].[SIN_NOMBRE].[VIAJE] V
+		 ) AS Y
+
+
+		 BEGIN TRANSACTION
+		 WHILE @min_year <= @max_year
+		 BEGIN
+		  INSERT INTO [SIN_NOMBRE].[BI_TIEMPO]
+		  VALUES (@min_year, '1'),
+				 (@min_year, '2'),
+				 (@min_year, '3'),
+				 (@min_year, '4')
+		  SET @min_year = @min_year + 1
+		 END
+		 COMMIT TRANSACTION
+END
+GO
+
+EXEC PR_CARGAR_TIEMPOS
+GO
+
+
  INSERT INTO [SIN_NOMBRE].[BI_CHOFER]
  SELECT [Legajo]
       ,[Nombre]
@@ -404,14 +479,32 @@ GO
       ,[Mail]
       ,[Fecha_Nac]
       ,[Costo_Hora]
-	  ,DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) AS [Edad]
+	  ,CASE WHEN DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) BETWEEN 18 AND 30 THEN '1'
+			WHEN DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) BETWEEN 31 AND 50 THEN '2'
+			ELSE '3' END AS [Rango_Edad]
   FROM [GD2C2021].[SIN_NOMBRE].[CHOFER]
   GO
+
+ INSERT INTO [SIN_NOMBRE].[BI_MECANICO]
+ SELECT [Legajo]
+      ,[Nombre]
+      ,[Apellido]
+      ,[DNI]
+      ,[Direccion]
+      ,[Telefono]
+      ,[Mail]
+      ,[Fecha_Nac]
+      ,[Costo_Hora]
+	  ,CASE WHEN DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) BETWEEN 18 AND 30 THEN '1'
+			WHEN DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) BETWEEN 31 AND 50 THEN '2'
+			ELSE '3' END AS [Rango_Edad]
+  FROM [GD2C2021].[SIN_NOMBRE].[MECANICO]
+  GO
+
 
  INSERT INTO [SIN_NOMBRE].[BI_TAREA]
  SELECT T.[Codigo]
       ,TT.[Descripcion] AS [Tipo]
-      ,T.[Descripcion]
       ,T.[Tiempo_Estimado]
   FROM [GD2C2021].[SIN_NOMBRE].[TAREA] T
   INNER JOIN [SIN_NOMBRE].[TIPO_TAREA] TT ON  TT.Codigo = T.Tipo
@@ -454,24 +547,8 @@ FROM [SIN_NOMBRE].TALLER T
 JOIN [SIN_NOMBRE].CIUDAD C ON T.Ciudad = C.Id_Ciudad
 GO
 
- INSERT INTO [SIN_NOMBRE].[BI_MECANICO]
- SELECT [Legajo]
-      ,[Nombre]
-      ,[Apellido]
-      ,[DNI]
-      ,[Direccion]
-      ,[Telefono]
-      ,[Mail]
-      ,[Fecha_Nac]
-      ,[Costo_Hora]
-	  ,DATEDIFF (YEAR, [Fecha_Nac] , GETDATE()) AS [Edad]
-  FROM [GD2C2021].[SIN_NOMBRE].[MECANICO]
-  GO
-
  INSERT INTO [SIN_NOMBRE].[BI_MATERIAL]
  SELECT Codigo
-	, Descripcion
-	, Precio
  FROM [SIN_NOMBRE].MATERIAL
  GO
 
@@ -479,12 +556,21 @@ GO
  SELECT [Codigo]
 		,C.Nombre
 		,C2.Nombre
-		,[KM]
-		,[Precio]
+		,R.[KM]
+		,R.[Precio]
 FROM [GD2C2021].[SIN_NOMBRE].[RECORRIDO] R
 JOIN [SIN_NOMBRE].CIUDAD C  ON R.Ciudad_Origen = C.Id_Ciudad
 JOIN [SIN_NOMBRE].CIUDAD C2 ON R.Ciudad_Destino = C2.Id_Ciudad
 GO
+
+
+
+
+
+
+
+
+
 
 INSERT INTO [SIN_NOMBRE].[BI_CAMION_VIAJE]
 SELECT CAST(V.Patente_Camion as NVARCHAR(15))
