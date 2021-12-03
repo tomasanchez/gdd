@@ -430,7 +430,14 @@ GO
  VALUES ('18-30'),('31-50'),('>50')
  GO
 
-CREATE OR ALTER PROCEDURE PR_CARGAR_TIEMPOS
+IF EXISTS (
+    SELECT * FROM sysobjects WHERE id = object_id(N'[SIN_NOMBRE].PR_CARGAR_TIEMPOS') 
+    AND xtype IN (N'FN', N'IF', N'TF')
+)
+    DROP FUNCTION [SIN_NOMBRE].PR_CARGAR_TIEMPOS
+GO
+
+CREATE OR ALTER PROCEDURE [SIN_NOMBRE].PR_CARGAR_TIEMPOS
 AS
 BEGIN
 		DECLARE @max_year INT
@@ -465,7 +472,7 @@ BEGIN
 END
 GO
 
-EXEC PR_CARGAR_TIEMPOS
+EXEC [SIN_NOMBRE].PR_CARGAR_TIEMPOS
 GO
 
  INSERT INTO [SIN_NOMBRE].[BI_CHOFER]
@@ -586,6 +593,88 @@ JOIN [SIN_NOMBRE].BI_TIEMPO T ON  T.Anio = YEAR(V.Fecha_Fin)
 	 AND DATEPART(QUARTER,V.Fecha_Fin) = T.Cuatrimestre
 JOIN [SIN_NOMBRE].CHOFER C ON C.Legajo = V.Legajo_Chofer
 ORDER BY T.Id
+GO
+
+
+----------------- FUNCIONES NECESARIAS
+
+IF EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[SIN_NOMBRE].FN_COSTO_OT') AND xtype IN (N'FN', N'IF', N'TF'))
+	DROP FUNCTION [SIN_NOMBRE].FN_COSTO_OT
+GO
+
+CREATE OR ALTER FUNCTION
+[SIN_NOMBRE].FN_COSTO_OT(@ot INT)
+RETURNS DECIMAL (18,2)
+AS
+BEGIN
+	DECLARE @costo_mecanico INT
+	DECLARE @costo_material DECIMAL(18,2)
+
+	SELECT
+		@costo_material = SUM(X.Precio)
+		,@costo_mecanico = SUM(M.Costo_Hora * DATEDIFF(DAY, TxO.Fecha_Inicio_Real, TxO.Fecha_Fin_Real) * 8)
+	FROM [SIN_NOMBRE].TAREA_POR_ORDEN TxO
+	JOIN [SIN_NOMBRE].MECANICO M ON M.Legajo = TxO.Mecanico
+	JOIN [SIN_NOMBRE].TAREA T ON TxO.Cod_Tarea = T.Codigo
+	JOIN [SIN_NOMBRE].MATERIAL_POR_TAREA MxT ON MxT.Cod_Tarea = T.Codigo
+	JOIN [SIN_NOMBRE].MATERIAL X ON  X.Codigo = MxT.Cod_Material
+	WHERE TxO.Nro_OT = @ot
+	GROUP BY TxO.Nro_OT
+
+ RETURN @costo_material + @costo_mecanico 
+END
+GO
+
+-- INSERT INTO [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO
+SELECT
+	T.Id
+	,CAST(OT.Patente_Camion as NVARCHAR(15)) AS [Patente]
+	,C.Modelo_Id
+	,C.Marca_Id
+	,(
+		SELECT TOP 1 Id_Taller
+		FROM [SIN_NOMBRE].TAREA_POR_ORDEN  TxO
+		JOIN [SIN_NOMBRE].MECANICO M ON M.Legajo = TxO.Mecanico
+		WHERE TxO.Nro_OT = OT.Nro_OT
+	 ) AS [Id_Taller]
+	 ,[SIN_NOMBRE].FN_COSTO_OT(OT.Nro_OT) AS [Costo_OT]
+	,DATEDIFF(DAY,OT.Fecha_Creacion, 
+				(
+					SELECT MAX(TxO.Fecha_Fin_Real)
+					FROM [SIN_NOMBRE].TAREA_POR_ORDEN TxO
+					WHERE TxO.Nro_OT = OT.Nro_OT
+				)
+			  ) AS [Dias_Sin_Servicio]
+FROM [SIN_NOMBRE].ORDEN_TRABAJO OT
+JOIN [SIN_NOMBRE].CAMION C				ON C.Patente = OT.Patente_Camion
+JOIN [SIN_NOMBRE].BI_TIEMPO T			ON  T.Anio = YEAR(OT.Fecha_Creacion)
+					AND DATEPART(QUARTER,OT.Fecha_Creacion) = T.Cuatrimestre
+ORDER BY 1, 2
+GO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 INSERT INTO [SIN_NOMBRE].[BI_CAMION_VIAJE]
