@@ -468,7 +468,6 @@ GO
 EXEC PR_CARGAR_TIEMPOS
 GO
 
-
  INSERT INTO [SIN_NOMBRE].[BI_CHOFER]
  SELECT [Legajo]
       ,[Nombre]
@@ -563,13 +562,30 @@ JOIN [SIN_NOMBRE].CIUDAD C  ON R.Ciudad_Origen = C.Id_Ciudad
 JOIN [SIN_NOMBRE].CIUDAD C2 ON R.Ciudad_Destino = C2.Id_Ciudad
 GO
 
+/**
+ -- Inserts de Hechos
+**/
 
-
-
-
-
-
-
+INSERT INTO [SIN_NOMBRE].[BI_HECHO_VIAJE]
+SELECT
+	T.Id AS [Tiempo]
+	,CAST(V.Patente_Camion as NVARCHAR(15)) AS [Patente]
+	,V.Cod_Recorrido AS [Recorrido]
+	,V.Precio_Final + 
+		(
+		 SELECT SUM(PxV.Cantidad * TP.Precio) AS 'VALOR_TOTAL_PAQUETES'
+			FROM [SIN_NOMBRE].PAQUETE_POR_VIAJE PxV
+			JOIN [SIN_NOMBRE].PAQUETE P ON PxV.Id_Paquete = P.Id
+			JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON P.Tipo = TP.Codigo
+			WHERE PxV.Id_Viaje = V.Id
+		) AS [Total_Facturado]
+	 -- 1 LT Combustible = $100 + Asumimos que trabaja todos los dias 8 horas.
+	,V.Consumo_Combustible * 100 + C.Costo_Hora * DATEDIFF(DAY, V.Fecha_Inicio, V.Fecha_Fin) * 8 AS [Costo_Total]
+FROM [SIN_NOMBRE].VIAJE V
+JOIN [SIN_NOMBRE].BI_TIEMPO T ON  T.Anio = YEAR(V.Fecha_Fin)
+	 AND DATEPART(QUARTER,V.Fecha_Fin) = T.Cuatrimestre
+JOIN [SIN_NOMBRE].CHOFER C ON C.Legajo = V.Legajo_Chofer
+ORDER BY T.Id
 
 
 INSERT INTO [SIN_NOMBRE].[BI_CAMION_VIAJE]
