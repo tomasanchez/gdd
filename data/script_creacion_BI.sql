@@ -129,7 +129,7 @@ GO
 
 /**
  * ---------------------------------------------------------------------------------------------
- * Tiempo
+ * DIMENSION Tiempo
  * ---------------------------------------------------------------------------------------------
  */
 CREATE TABLE [SIN_NOMBRE].BI_TIEMPO
@@ -142,7 +142,7 @@ GO
 
  /**
  * ---------------------------------------------------------------------------------------------
- * Rango Edad
+ * DIMENSION Rango Edad
  * ---------------------------------------------------------------------------------------------
  */
 CREATE TABLE [SIN_NOMBRE].BI_RANGO_EDAD
@@ -154,7 +154,7 @@ GO
 
 /**
  * ---------------------------------------------------------------------------------------------
- * Chofer
+ * DIMENSION Chofer
  * ---------------------------------------------------------------------------------------------
  */
 
@@ -174,21 +174,34 @@ CREATE TABLE [SIN_NOMBRE].BI_CHOFER (
 
 /**
  * ---------------------------------------------------------------------------------------------
- * Tarea
+ * DIMENSION Tipo Tarea
  * ---------------------------------------------------------------------------------------------
  */
 
 
-CREATE TABLE [SIN_NOMBRE].BI_TAREA
+CREATE TABLE [SIN_NOMBRE].BI_TIPO_TAREA
 (
 	Codigo INT NOT NULL PRIMARY KEY,
 	Tipo NVARCHAR(255) NOT NULL,
-	Tiempo_Estimado INT NOT NULL
+	Tiempo_Estimado INT NOT NULL,
+	Costo DECIMAL(18,2)
+)
+
+CREATE TABLE [SIN_NOMBRE].BI_TAREA
+(
+	Tarea INT NOT NULL,
+	Material NVARCHAR(100) NOT NULL,
+	CONSTRAINT PK_BI_TAREA PRIMARY KEY (Tarea, Material)
+)
+
+CREATE TABLE [SIN_NOMBRE].BI_MATERIAL
+(
+	Material NVARCHAR(100) NOT NULL PRIMARY KEY
 )
 
 /**
  * ---------------------------------------------------------------------------------------------
- * MODELO CAMION
+ * DIMENSION MODELO CAMION
  * ---------------------------------------------------------------------------------------------
  */
 
@@ -287,17 +300,6 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
 
 /**
  * ---------------------------------------------------------------------------------------------
- * Material
- * ---------------------------------------------------------------------------------------------
- */
-
-CREATE TABLE [SIN_NOMBRE].BI_MATERIAL
-(
-	Material NVARCHAR(100) NOT NULL PRIMARY KEY
-)
-
-/**
- * ---------------------------------------------------------------------------------------------
  * Tablas de Hechos
  * ---------------------------------------------------------------------------------------------
  */
@@ -316,9 +318,8 @@ CREATE TABLE [SIN_NOMBRE].BI_MATERIAL
    Patente NVARCHAR(15),
    Modelo SMALLINT NOT NULL,
    Marca SMALLINT NOT NULL,
-   Tarea_Mas_Utilizada INT NOT NULL,
-   Material_Mas_Utilizado NVARCHAR(100) NOT NULL,
-   Costo_Total DECIMAL(18,2),
+   Tarea INT NOT NULL,
+   Costo DECIMAL(18,2),
    Desvio_Tarea INT,
    Horas_Sin_Servicio INT,
  )
@@ -335,6 +336,11 @@ GO
 
 ALTER TABLE [SIN_NOMBRE].BI_MECANICO WITH CHECK ADD
  CONSTRAINT [FK_bi_mecanico_edad]	FOREIGN KEY(Rango_Edad) REFERENCES [SIN_NOMBRE].BI_RANGO_EDAD
+GO
+
+ALTER TABLE [SIN_NOMBRE].BI_TAREA WITH CHECK ADD
+ CONSTRAINT [FK_bi_tarea_tipo]		FOREIGN KEY(Tarea) REFERENCES [SIN_NOMBRE].BI_RANGO_Tipo_Tarea
+ ,CONSTRAINT [FK_bi_tarea_material]	FOREIGN KEY(Material) REFERENCES [SIN_NOMBRE].BI_RANGO_Tipo_Material
 GO
 
  ALTER TABLE [SIN_NOMBRE].[BI_CAMION] WITH CHECK ADD
@@ -356,8 +362,7 @@ ALTER TABLE [SIN_NOMBRE].[BI_HECHO_ORDEN_TRABAJO] WITH CHECK ADD
 	,CONSTRAINT [FK_bi_h_ot_camion]		FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
 	,CONSTRAINT [FK_bi_h_ot_modelo]		FOREIGN KEY(Marca, Modelo) REFERENCES [SIN_NOMBRE].[BI_MODELO_CAMION] (Marca_Id, Modelo_Id)
 	,CONSTRAINT [FK_bi_h_ot_taller]		FOREIGN KEY(Id_Taller) REFERENCES [SIN_NOMBRE].[BI_TALLER]
-	,CONSTRAINT [FK_bi_h_ot_tarea]		FOREIGN KEY(Tarea_Mas_Utilizada) REFERENCES [SIN_NOMBRE].[BI_TAREA]
-	,CONSTRAINT [FK_bi_h_ot_material]	FOREIGN KEY(Material_Mas_Utilizado) REFERENCES [SIN_NOMBRE].[BI_MATERIAL]
+	,CONSTRAINT [FK_bi_h_ot_tarea]		FOREIGN KEY(Tarea) REFERENCES [SIN_NOMBRE].[BI_TIPO_TAREA]
  GO
 
 /**
@@ -674,7 +679,7 @@ SELECT
 	T.Anio
 	,T.Cuatrimestre
 	,OT.Patente
-	,SUM(OT.Costo_Total) AS [Costo Total Cuatrimestral]
+	,SUM(OT.Costo) AS [Costo Total Cuatrimestral]
 FROM [SIN_NOMBRE].[BI_HECHO_ORDEN_TRABAJO] OT
 JOIN [SIN_NOMBRE].[BI_TIEMPO] T ON T.Id = OT.Tiempo
 GROUP BY T.Anio, T.Cuatrimestre, OT.Patente
@@ -686,10 +691,10 @@ CREATE OR ALTER VIEW [SIN_NOMBRE].[V_Desvio_Tareas]
 AS
 SELECT DISTINCT
       OT.[Id_taller]				AS [Taller]
-	  ,OT.[Tarea_Mas_Utilizada]		AS [Tarea]
+	  ,OT.[Tarea]		AS [Tarea]
       ,AVG(Desvio_Tarea)			AS [Promedio Desvio]
   FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO OT
-  GROUP BY OT.Id_taller, OT.Tarea_Mas_Utilizada
+  GROUP BY OT.Id_taller, OT.Tarea
 GO
 
 -- TOP 5 Tareas Mas Utilizadas Por Camion
@@ -698,15 +703,15 @@ AS
 SELECT DISTINCT 
 	OT.Marca
 	,OT.Modelo
-	,OT.Tarea_Mas_Utilizada
+	,OT.Tarea
 FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO OT
-WHERE OT.Tarea_Mas_Utilizada IN (
+WHERE OT.Tarea IN (
 									SELECT TOP 5
-									OT2.Tarea_Mas_Utilizada
+									OT2.Tarea
 									FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO OT2
 									WHERE OT2.Marca = OT.Marca AND OT2.Modelo = OT.Modelo
-									GROUP BY OT2.Tarea_Mas_Utilizada
-									ORDER BY COUNT(OT2.Tarea_Mas_UTILIZADA) DESC
+									GROUP BY OT2.Tarea
+									ORDER BY COUNT(OT2.Tarea) DESC
 								)
 GO
 
@@ -765,7 +770,7 @@ RETURNS INT
 AS
 BEGIN
  RETURN		(	SELECT
-					SUM(OT.Costo_Total) AS [Costo_Mantenimiento]
+					SUM(OT.Costo) AS [Costo_Mantenimiento]
 				FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO OT
 				WHERE OT.Patente = @patente
 			)
