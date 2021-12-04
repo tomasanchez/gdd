@@ -392,7 +392,6 @@ GO
 ALTER TABLE [SIN_NOMBRE].[BI_HECHO_VIAJE] WITH CHECK ADD
 	CONSTRAINT [FK_bi_h_viaje_tiempo]	FOREIGN KEY(Tiempo) REFERENCES [SIN_NOMBRE].[BI_TIEMPO],
 	CONSTRAINT [FK_bi_h_viaje_recorr]	FOREIGN KEY(Recorrido) REFERENCES [SIN_NOMBRE].[BI_RECORRIDO],
-	CONSTRAINT [FK_bi_h_viaje_chofer]	FOREIGN KEY(Legajo_Chofer) REFERENCES [SIN_NOMBRE].[BI_CHOFER],
 	CONSTRAINT [FK_bi_h_viaje_patnte]	FOREIGN KEY(Patente) REFERENCES [SIN_NOMBRE].[BI_CAMION]
 GO
 
@@ -430,11 +429,8 @@ GO
  VALUES ('18-30'),('31-50'),('>50')
  GO
 
-IF EXISTS (
-    SELECT * FROM sysobjects WHERE id = object_id(N'[SIN_NOMBRE].PR_CARGAR_TIEMPOS') 
-    AND xtype IN (N'FN', N'IF', N'TF')
-)
-    DROP FUNCTION [SIN_NOMBRE].PR_CARGAR_TIEMPOS
+IF(object_id(N'[SIN_NOMBRE].PR_CARGAR_TIEMPOS') IS NOT NULL)
+    DROP PROCEDURE [SIN_NOMBRE].PR_CARGAR_TIEMPOS
 GO
 
 CREATE OR ALTER PROCEDURE [SIN_NOMBRE].PR_CARGAR_TIEMPOS
@@ -572,7 +568,6 @@ GO
 /**
  -- Inserts de Hechos
 **/
-
 INSERT INTO [SIN_NOMBRE].[BI_HECHO_VIAJE]
 SELECT
 	T.Id AS [Tiempo]
@@ -594,7 +589,6 @@ JOIN [SIN_NOMBRE].BI_TIEMPO T ON  T.Anio = YEAR(V.Fecha_Fin)
 JOIN [SIN_NOMBRE].CHOFER C ON C.Legajo = V.Legajo_Chofer
 ORDER BY T.Id
 GO
-
 
 ----------------- FUNCIONES NECESARIAS
 
@@ -626,33 +620,93 @@ END
 GO
 
 -- INSERT INTO [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO
-SELECT
-	T.Id
-	,CAST(OT.Patente_Camion as NVARCHAR(15)) AS [Patente]
-	,C.Modelo_Id
-	,C.Marca_Id
-	,(
-		SELECT TOP 1 Id_Taller
-		FROM [SIN_NOMBRE].TAREA_POR_ORDEN  TxO
-		JOIN [SIN_NOMBRE].MECANICO M ON M.Legajo = TxO.Mecanico
-		WHERE TxO.Nro_OT = OT.Nro_OT
-	 ) AS [Id_Taller]
-	 ,[SIN_NOMBRE].FN_COSTO_OT(OT.Nro_OT) AS [Costo_OT]
-	,DATEDIFF(DAY,OT.Fecha_Creacion, 
+IF (OBJECT_ID(N'[SIN_NOMBRE].PR_INSERT_HECHO_OT') IS NOT NULL )
+	DROP PROCEDURE [SIN_NOMBRE].PR_INSERT_HECHO_OT
+GO
+
+CREATE OR ALTER PROCEDURE
+[SIN_NOMBRE].PR_INSERT_HECHO_OT
+AS
+BEGIN
+
+	DECLARE @c_h_ot CURSOR
+	SET @c_h_ot = CURSOR FOR
+	SELECT
+		T.Id
+		,OT.Nro_OT
+		,CAST(OT.Patente_Camion as NVARCHAR(15)) AS [Patente]
+		,C.Modelo_Id
+		,C.Marca_Id
+		,(
+			SELECT TOP 1 Id_Taller
+			FROM [SIN_NOMBRE].TAREA_POR_ORDEN  TxO
+			JOIN [SIN_NOMBRE].MECANICO M ON M.Legajo = TxO.Mecanico
+			WHERE TxO.Nro_OT = OT.Nro_OT
+		)	AS [Id_Taller]
+		,[SIN_NOMBRE].FN_COSTO_OT(OT.Nro_OT) AS [Costo_OT]
+		,DATEDIFF(DAY,OT.Fecha_Creacion, 
 				(
 					SELECT MAX(TxO.Fecha_Fin_Real)
 					FROM [SIN_NOMBRE].TAREA_POR_ORDEN TxO
 					WHERE TxO.Nro_OT = OT.Nro_OT
 				)
 			  ) AS [Dias_Sin_Servicio]
-FROM [SIN_NOMBRE].ORDEN_TRABAJO OT
-JOIN [SIN_NOMBRE].CAMION C				ON C.Patente = OT.Patente_Camion
-JOIN [SIN_NOMBRE].BI_TIEMPO T			ON  T.Anio = YEAR(OT.Fecha_Creacion)
-					AND DATEPART(QUARTER,OT.Fecha_Creacion) = T.Cuatrimestre
-ORDER BY 1, 2
+	FROM [SIN_NOMBRE].ORDEN_TRABAJO OT
+	JOIN [SIN_NOMBRE].CAMION C				ON C.Patente = OT.Patente_Camion
+	JOIN [SIN_NOMBRE].BI_TIEMPO T			ON  T.Anio = YEAR(OT.Fecha_Creacion)
+	 AND DATEPART(QUARTER,OT.Fecha_Creacion) = T.Cuatrimestre
+	 ORDER BY 1, 3
+
+	 DECLARE @tiempo	INT
+	 DECLARE @ot		INT
+	 DECLARE @patente	NVARCHAR(15)
+	 DECLARE @modelo	SMALLINT
+	 DECLARE @marca		SMALLINT
+	 DECLARE @taller	INT
+	 DECLARE @costo		DECIMAL(18,2)
+	 DECLARE @sin_servicio INT
+
+	 OPEN @c_h_ot
+	 FETCH NEXT FROM @c_h_ot
+	 INTO @tiempo, @ot, @patente, @modelo, @marca, @taller, @costo, @sin_servicio
+
+	 BEGIN TRANSACTION
+	 WHILE @@FETCH_STATUS = 0
+	 BEGIN
+
+		DECLARE @tarea INT
+		DECLARE @material NVARCHAR(100)
+		DECLARE @desvio INT
+
+		SELECT TOP 1 
+		 @tarea = TxO.Cod_Tarea
+		 ,@desvio = ABS(DATEDIFF(DAY, TxO.Fecha_Inicio_Real, TxO.Fecha_Fin_Real) - T.Tiempo_Estimado)
+		FROM [SIN_NOMBRE].TAREA_POR_ORDEN TxO
+		JOIN [SIN_NOMBRE].TAREA T ON T.Codigo = TxO.Cod_Tarea
+		WHERE TxO.Nro_OT = @ot
+		ORDER BY NEWID()
+
+		SELECT TOP 1
+		 @material = MxT.Cod_Material 
+		 FROM [SIN_NOMBRE].MATERIAL_POR_TAREA MxT
+		 WHERE MxT.Cod_Tarea = @tarea
+		 ORDER BY NEWID()
+
+		 INSERT INTO [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO
+		 VALUES (@tiempo, @taller, @patente, @modelo, @marca, @tarea, @material, @costo, @desvio, @sin_servicio)
+
+	 	FETCH NEXT FROM @c_h_ot
+		INTO @tiempo, @ot, @patente, @modelo, @marca, @taller, @costo, @sin_servicio
+	 END
+	 COMMIT TRANSACTION
+
+	 CLOSE @c_h_ot
+	 DEALLOCATE @c_h_ot
+END
 GO
 
-
+EXEC [SIN_NOMBRE].PR_INSERT_HECHO_OT
+GO
 
 
 
