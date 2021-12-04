@@ -703,16 +703,20 @@ CREATE OR ALTER VIEW [SIN_NOMBRE].[V_Top_10_Materiales_Taller]
 AS
 SELECT DISTINCT
 	OT.Id_taller AS [Taller]
-	,OT.Material_Mas_Utilizado AS [Material]
-FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO OT
-WHERE OT.Material_Mas_Utilizado IN (
-									SELECT TOP 10
-									 OT2.Material_Mas_Utilizado
-									FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO OT2
-									WHERE OT2.Id_taller = OT.Id_taller
-									GROUP BY OT2.Material_Mas_Utilizado
-									ORDER BY COUNT(OT2.Material_Mas_Utilizado) DESC
-									)
+	,M.Material AS [Material]
+FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO	OT
+INNER JOIN [SIN_NOMBRE].BI_TAREA			T	ON T.Tarea		= OT.Tarea
+INNER JOIN [SIN_NOMBRE].BI_MATERIAL			M	ON M.Material	= T.Material
+WHERE M.Material IN (
+						SELECT TOP 10
+							T2.Material
+						FROM [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO OT2
+						INNER JOIN [SIN_NOMBRE].BI_TAREA			T2	ON T2.Tarea		= OT2.Tarea
+						INNER JOIN [SIN_NOMBRE].BI_MATERIAL			M2	ON M2.Material	= T2.Material
+						WHERE OT2.Id_taller = OT.Id_taller
+						GROUP BY T2.Material
+						ORDER BY COUNT(T2.Material) DESC
+					)
 GO
 
 --- Facturacion Total Por Recorrido
