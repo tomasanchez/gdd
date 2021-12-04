@@ -86,6 +86,14 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE]
 	DROP TABLE [SIN_NOMBRE].BI_TAREA
 GO
 
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_TIPO_TAREA') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_TIPO_TAREA
+GO
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MATERIAL') AND type in (N'U'))
+	DROP TABLE [SIN_NOMBRE].BI_MATERIAL
+GO
+
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_CAMION') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].BI_CAMION
 GO
@@ -112,10 +120,6 @@ GO
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_RECORRIDO') AND type in (N'U'))
 	DROP TABLE [SIN_NOMBRE].BI_RECORRIDO
-GO
-
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_MATERIAL') AND type in (N'U'))
-	DROP TABLE [SIN_NOMBRE].BI_MATERIAL
 GO
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[SIN_NOMBRE].BI_TIEMPO') AND type in (N'U'))
@@ -310,6 +314,7 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
    Recorrido INT NOT NULL,
    Total_Facturado DECIMAL(18,2),
    Costo_Total DECIMAL(18,2)
+   CONSTRAINT PK_h_viaje PRIMARY KEY (Tiempo, Patente, Recorrido)
  )
 
   CREATE TABLE [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO(
@@ -322,6 +327,7 @@ CREATE TABLE [SIN_NOMBRE].BI_RECORRIDO (
    Costo DECIMAL(18,2),
    Desvio_Tarea INT,
    Horas_Sin_Servicio INT,
+   CONSTRAINT PK_h_ot PRIMARY KEY (Tiempo, Id_taller, Patente, Modelo, Marca, Tarea)
  )
 
 /**
@@ -339,8 +345,8 @@ ALTER TABLE [SIN_NOMBRE].BI_MECANICO WITH CHECK ADD
 GO
 
 ALTER TABLE [SIN_NOMBRE].BI_TAREA WITH CHECK ADD
- CONSTRAINT [FK_bi_tarea_tipo]		FOREIGN KEY(Tarea) REFERENCES [SIN_NOMBRE].BI_RANGO_Tipo_Tarea
- ,CONSTRAINT [FK_bi_tarea_material]	FOREIGN KEY(Material) REFERENCES [SIN_NOMBRE].BI_RANGO_Tipo_Material
+	CONSTRAINT		[FK_bi_tarea_tipo]		FOREIGN KEY(Tarea) REFERENCES [SIN_NOMBRE].BI_Tipo_Tarea
+	,CONSTRAINT		[FK_bi_tarea_material]	FOREIGN KEY(Material) REFERENCES [SIN_NOMBRE].BI_Material
 GO
 
  ALTER TABLE [SIN_NOMBRE].[BI_CAMION] WITH CHECK ADD
@@ -478,8 +484,6 @@ SELECT
 FROM [SIN_NOMBRE].MATERIAL_POR_TAREA
 GO
 
-
-
 -- Dimension Modelo Camion
 
  INSERT INTO [SIN_NOMBRE].[BI_MARCA_CAMION]
@@ -533,55 +537,36 @@ GO
 /**
  -- Inserts de Hechos
 **/
+
+CREATE OR ALTER FUNCTION
+[SIN_NOMBRE].FN_VALOR_VIAJE(@viaje INT)
+RETURNS DECIMAL(18,2)
+AS
+BEGIN
+ RETURN  (
+			SELECT SUM(PxV.Cantidad * TP.Precio) AS 'VALOR_TOTAL_PAQUETES'
+			FROM [SIN_NOMBRE].PAQUETE_POR_VIAJE PxV
+			JOIN [SIN_NOMBRE].PAQUETE P ON PxV.Id_Paquete = P.Id
+			JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON P.Tipo = TP.Codigo
+			WHERE PxV.Id_Viaje = @viaje
+		  )
+END
+GO
+
 INSERT INTO [SIN_NOMBRE].[BI_HECHO_VIAJE]
 SELECT
 	T.Id AS [Tiempo]
 	,CAST(V.Patente_Camion as NVARCHAR(15)) AS [Patente]
 	,V.Cod_Recorrido AS [Recorrido]
-	,V.Precio_Final + 
-		(
-		 SELECT SUM(PxV.Cantidad * TP.Precio) AS 'VALOR_TOTAL_PAQUETES'
-			FROM [SIN_NOMBRE].PAQUETE_POR_VIAJE PxV
-			JOIN [SIN_NOMBRE].PAQUETE P ON PxV.Id_Paquete = P.Id
-			JOIN [SIN_NOMBRE].TIPO_PAQUETE TP ON P.Tipo = TP.Codigo
-			WHERE PxV.Id_Viaje = V.Id
-		) AS [Total_Facturado]
+	,SUM(V.Precio_Final + [SIN_NOMBRE].FN_VALOR_VIAJE(V.Id)) AS [Total_Facturado]
 	 -- 1 LT Combustible = $100 + Asumimos que trabaja todos los dias 8 horas.
-	,V.Consumo_Combustible * 100 + C.Costo_Hora * DATEDIFF(DAY, V.Fecha_Inicio, V.Fecha_Fin) * 8 AS [Costo_Total]
+	,SUM(V.Consumo_Combustible * 100 + C.Costo_Hora * DATEDIFF(DAY, V.Fecha_Inicio, V.Fecha_Fin) * 8) AS [Costo_Total]
 FROM [SIN_NOMBRE].VIAJE V
 JOIN [SIN_NOMBRE].BI_TIEMPO T ON  T.Anio = YEAR(V.Fecha_Fin)
 	 AND DATEPART(QUARTER,V.Fecha_Fin) = T.Cuatrimestre
 JOIN [SIN_NOMBRE].CHOFER C ON C.Legajo = V.Legajo_Chofer
-ORDER BY T.Id
-GO
-
------------------ FUNCIONES NECESARIAS
-
-IF EXISTS (SELECT * FROM sysobjects WHERE id = object_id(N'[SIN_NOMBRE].FN_COSTO_OT') AND xtype IN (N'FN', N'IF', N'TF'))
-	DROP FUNCTION [SIN_NOMBRE].FN_COSTO_OT
-GO
-
-CREATE OR ALTER FUNCTION
-[SIN_NOMBRE].FN_COSTO_OT(@ot INT)
-RETURNS DECIMAL (18,2)
-AS
-BEGIN
-	DECLARE @costo_mecanico INT
-	DECLARE @costo_material DECIMAL(18,2)
-
-	SELECT
-		@costo_material = SUM(X.Precio)
-		,@costo_mecanico = SUM(M.Costo_Hora * DATEDIFF(DAY, TxO.Fecha_Inicio_Real, TxO.Fecha_Fin_Real) * 8)
-	FROM [SIN_NOMBRE].TAREA_POR_ORDEN TxO
-	JOIN [SIN_NOMBRE].MECANICO M ON M.Legajo = TxO.Mecanico
-	JOIN [SIN_NOMBRE].TAREA T ON TxO.Cod_Tarea = T.Codigo
-	JOIN [SIN_NOMBRE].MATERIAL_POR_TAREA MxT ON MxT.Cod_Tarea = T.Codigo
-	JOIN [SIN_NOMBRE].MATERIAL X ON  X.Codigo = MxT.Cod_Material
-	WHERE TxO.Nro_OT = @ot
-	GROUP BY TxO.Nro_OT
-
- RETURN @costo_material + @costo_mecanico 
-END
+GROUP BY T.Id, V.Patente_Camion, V.Cod_Recorrido
+ORDER BY V.Patente_Camion, T.Id, Recorrido
 GO
 
 -- INSERT INTO [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO
@@ -598,70 +583,49 @@ BEGIN
 	SET @c_h_ot = CURSOR FOR
 	SELECT
 		T.Id
-		,OT.Nro_OT
+		,TxO.Cod_Tarea
 		,CAST(OT.Patente_Camion as NVARCHAR(15)) AS [Patente]
 		,C.Modelo_Id
 		,C.Marca_Id
-		,(
-			SELECT TOP 1 Id_Taller
-			FROM [SIN_NOMBRE].TAREA_POR_ORDEN  TxO
-			JOIN [SIN_NOMBRE].MECANICO M ON M.Legajo = TxO.Mecanico
-			WHERE TxO.Nro_OT = OT.Nro_OT
-		)	AS [Id_Taller]
-		,[SIN_NOMBRE].FN_COSTO_OT(OT.Nro_OT) AS [Costo_OT]
-		,DATEDIFF(DAY,OT.Fecha_Creacion, 
-				(
-					SELECT MAX(TxO.Fecha_Fin_Real)
-					FROM [SIN_NOMBRE].TAREA_POR_ORDEN TxO
-					WHERE TxO.Nro_OT = OT.Nro_OT
-				)
-			  ) AS [Dias_Sin_Servicio]
+		,TL.Id
+		,SUM(TT.Costo) AS [Costo]
+		,SUM(ABS(DATEDIFF(DAY, TxO.Fecha_Inicio_Real, TxO.Fecha_Fin_Real) - TT.Tiempo_Estimado)) AS [Desvio]
+		,SUM(DATEDIFF(DAY, OT.Fecha_Creacion, TxO.Fecha_Fin_Real))								AS [Dias_Sin_Servicio]
 	FROM [SIN_NOMBRE].ORDEN_TRABAJO OT
 	JOIN [SIN_NOMBRE].CAMION C				ON C.Patente = OT.Patente_Camion
 	JOIN [SIN_NOMBRE].BI_TIEMPO T			ON  T.Anio = YEAR(OT.Fecha_Creacion)
 	 AND DATEPART(QUARTER,OT.Fecha_Creacion) = T.Cuatrimestre
+	JOIN [SIN_NOMBRE].TAREA_POR_ORDEN TxO	ON TxO.Nro_OT = OT.Nro_OT
+	JOIN [SIN_NOMBRE].BI_TIPO_TAREA TT		ON TT.Codigo = TxO.Cod_Tarea
+	LEFT JOIN [SIN_NOMBRE].MECANICO	M			ON M.Legajo = TxO.Mecanico
+	LEFT JOIN [SIN_NOMBRE].TALLER	TL			ON TL.Id	= M.Id_taller
+	WHERE TxO.Cod_Tarea IN (1,2,3,4,5,6)
+	GROUP BY  T.Id, TxO.Cod_Tarea, Tl.Id, OT.Patente_Camion, C.Modelo_Id, C.Marca_Id
 	 ORDER BY 1, 3
 
-	 DECLARE @tiempo	INT
-	 DECLARE @ot		INT
-	 DECLARE @patente	NVARCHAR(15)
-	 DECLARE @modelo	SMALLINT
-	 DECLARE @marca		SMALLINT
-	 DECLARE @taller	INT
-	 DECLARE @costo		DECIMAL(18,2)
-	 DECLARE @sin_servicio INT
+	 DECLARE @tiempo		INT
+	 DECLARE @tarea			INT
+	 DECLARE @patente		NVARCHAR(15)
+	 DECLARE @modelo		SMALLINT
+	 DECLARE @marca			SMALLINT
+	 DECLARE @taller		INT
+	 DECLARE @costo			DECIMAL(18,2)
+	 DECLARE @desvio		INT
+	 DECLARE @sin_servicio	INT
 
 	 OPEN @c_h_ot
 	 FETCH NEXT FROM @c_h_ot
-	 INTO @tiempo, @ot, @patente, @modelo, @marca, @taller, @costo, @sin_servicio
+	 INTO @tiempo, @tarea, @patente, @modelo, @marca, @taller, @costo, @desvio, @sin_servicio
 
 	 BEGIN TRANSACTION
 	 WHILE @@FETCH_STATUS = 0
 	 BEGIN
-
-		DECLARE @tarea INT
-		DECLARE @material NVARCHAR(100)
-		DECLARE @desvio INT
-
-		SELECT TOP 1 
-		 @tarea = TxO.Cod_Tarea
-		 ,@desvio = ABS(DATEDIFF(DAY, TxO.Fecha_Inicio_Real, TxO.Fecha_Fin_Real) - T.Tiempo_Estimado)
-		FROM [SIN_NOMBRE].TAREA_POR_ORDEN TxO
-		JOIN [SIN_NOMBRE].TAREA T ON T.Codigo = TxO.Cod_Tarea
-		WHERE TxO.Nro_OT = @ot
-		ORDER BY NEWID()
-
-		SELECT TOP 1
-		 @material = MxT.Cod_Material 
-		 FROM [SIN_NOMBRE].MATERIAL_POR_TAREA MxT
-		 WHERE MxT.Cod_Tarea = @tarea
-		 ORDER BY NEWID()
-
 		 INSERT INTO [SIN_NOMBRE].BI_HECHO_ORDEN_TRABAJO
-		 VALUES (@tiempo, @taller, @patente, @modelo, @marca, @tarea, @material, @costo, @desvio, @sin_servicio)
+		 VALUES (@tiempo, @taller, @patente, @modelo, @marca, @tarea, @costo, @desvio, @sin_servicio)
 
 	 	FETCH NEXT FROM @c_h_ot
-		INTO @tiempo, @ot, @patente, @modelo, @marca, @taller, @costo, @sin_servicio
+		INTO @tiempo, @tarea, @patente, @modelo, @marca, @taller, @costo, @desvio, @sin_servicio
+
 	 END
 	 COMMIT TRANSACTION
 
